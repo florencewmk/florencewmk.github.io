@@ -89,12 +89,20 @@ ol { list-style: none; margin: 0; padding: 0; }
 
 /* ---------- Hero ---------- */
 .hero {
-	position: relative; min-height: 100svh;
+	position: relative; min-height: 100svh; isolation: isolate;
 	display: grid; align-items: center;
 	padding: 120px var(--gutter) 110px;
 	overflow: hidden;
 }
-.engine, .flame { position: absolute; inset: 0; width: 100%; height: 100%; }
+.engine, .flame, .sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sky { z-index: 0; }
+.hero::before { /* shade on the text side so the copy stays readable over the stars */
+	content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+	background: linear-gradient(90deg, rgba(0, 0, 0, .82) 0%, rgba(0, 0, 0, .7) 34%, rgba(0, 0, 0, .25) 52%, transparent 64%);
+}
+.flame, .engine { z-index: 2; }
+.hero-inner { z-index: 3; }
+@media (max-width: 760px) { .hero::before { background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, .55) 22%, rgba(0, 0, 0, .78) 45%, rgba(0, 0, 0, .7) 100%); } }
 .flame { -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); }  /* flame fades out instead of a hard edge */
 @media (max-width: 760px) { .hero-inner::before { content: ""; position: absolute; inset: -40px -24px; z-index: -1; background: radial-gradient(closest-side, rgba(0, 0, 0, .88), rgba(0, 0, 0, .5) 70%, transparent); } }
 .hero-inner { position: relative; z-index: 2; width: 100%; max-width: var(--max); margin: 0 auto; pointer-events: none; }
