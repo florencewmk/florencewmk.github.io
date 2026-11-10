@@ -23,7 +23,7 @@
 	}
 	document.addEventListener("pointermove", function (e) {
 		sx = e.clientX; sy = e.clientY;
-		shineTarget = e.target.closest ? e.target.closest(".shine") : null;
+		shineTarget = e.target.closest ? e.target.closest(".shine, .hero-glow") : null;
 		if (shineTarget && !shinePending) { shinePending = true; requestAnimationFrame(applyShine); }
 	}, { passive: true });
 

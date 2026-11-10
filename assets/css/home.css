@@ -474,3 +474,18 @@ ol { list-style: none; margin: 0; padding: 0; }
 .repo-skel { min-height: 190px; border-radius: 22px; background: rgba(255, 255, 255, .04); animation: repo-pulse 1.4s ease-in-out infinite; }
 @keyframes repo-pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .repo-skel { animation: none; } }
+
+/* hero copy: purple glow follows the cursor behind the text (same feel as the cards) */
+.hero-glow { --mx: 50%; --my: -200%; }
+.hero-glow::after {
+	content: ""; position: absolute; inset: -140px -160px; z-index: -1; pointer-events: none;
+	background:
+		radial-gradient(420px circle at calc(var(--mx) + 160px) calc(var(--my) + 140px), color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+		radial-gradient(140px circle at calc(var(--mx) + 160px) calc(var(--my) + 140px), rgba(255, 255, 255, .07), transparent 70%);
+	opacity: 0; transition: opacity .5s var(--ease);
+}
+.hero-glow:hover::after { opacity: 1; }
+.hero-glow h1, .hero-glow .lede { transition: text-shadow .5s var(--ease), color .5s var(--ease); }
+.hero-glow:hover h1 { text-shadow: 0 0 40px rgba(201, 187, 247, .35); }
+.hero-glow:hover .lede { color: #c4c4cc; }
+@media (hover: none) { .hero-glow::after { display: none; } }
