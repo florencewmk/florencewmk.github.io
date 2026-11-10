@@ -404,20 +404,30 @@ ol { list-style: none; margin: 0; padding: 0; }
 .hero .engine, .hero .flame { right: auto; }   /* JS sets left + width to a strip around the engine */
 
 /* ---------- Scroll reveal, tied directly to the scroll position ----------
-   Items fade and glide in as they enter at the bottom and out as they leave at the top.
-   Where the browser supports scroll-driven animations this runs off the main thread;
-   otherwise home.js sets the same values on every scroll frame. */
+   Items rise, grow and fade in over the bottom 30% of the screen and drift up and fade out
+   over the top 22%. Scroll-driven animations run on the compositor (off the main thread),
+   so they move exactly with the scroll; home.js does the same where they aren't supported. */
 @supports (animation-timeline: view()) {
 	.reveal {
-		animation: reveal linear both;
-		animation-timeline: view();
-		animation-range: entry 0% exit 100%;
+		animation: reveal-in linear both, reveal-out linear forwards;
+		animation-timeline: view(), view();
+		animation-range: cover 0px cover 30vh, cover calc(100% - 22vh) cover 100%;
 	}
-	@keyframes reveal {
-		entry 0%   { opacity: 0; transform: translate3d(0, 32px, 0) scale(.985); animation-timing-function: cubic-bezier(.25, .7, .35, 1); }
-		entry 100% { opacity: 1; transform: none; }
-		exit 0%    { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.65, 0, .75, .3); }
-		exit 100%  { opacity: 0; transform: translate3d(0, -32px, 0) scale(.985); }
+	@keyframes reveal-in {
+		from { opacity: 0; transform: translate3d(0, 90px, 0) scale(.92); animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+		to   { opacity: 1; transform: none; }
+	}
+	@keyframes reveal-out {
+		from { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.6, 0, .8, .4); }
+		to   { opacity: 0; transform: translate3d(0, -60px, 0) scale(.95); }
 	}
 }
-@media (prefers-reduced-motion: reduce) { .reveal { animation: none !important; opacity: 1 !important; transform: none !important; } }
+.reveal.reveal-static { animation: none; }
+.reveal.reveal-late { animation: none; opacity: 0; transform: translate3d(0, 60px, 0) scale(.95); transition: opacity .9s cubic-bezier(.2, .7, .3, 1), transform .9s cubic-bezier(.2, .7, .3, 1); }
+.reveal.reveal-late.in { opacity: 1; transform: none; }
+/* page title: a short entrance when the page opens */
+.page-head > * { animation: intro .9s cubic-bezier(.2, .7, .3, 1) both; }
+.page-head > *:nth-child(2) { animation-delay: .08s; }
+.page-head > *:nth-child(3) { animation-delay: .16s; }
+@keyframes intro { from { opacity: 0; transform: translate3d(0, 40px, 0); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .reveal, .reveal.reveal-late, .page-head > * { animation: none !important; opacity: 1 !important; transform: none !important; } }

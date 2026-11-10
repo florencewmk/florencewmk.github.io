@@ -61,6 +61,26 @@
 			var kids = g.matches(".focus, .rows, .feature, .grid-cards") ? g.children : [g];
 			Array.prototype.forEach.call(kids, function (el) { el.classList.add("reveal"); els.push(el); });
 		});
+		// Items the page can never scroll far enough to fully reveal (near the end of a short page)
+		// fade in once instead; items already at the very top on load just stay visible.
+		var late = [];
+		var io = "IntersectionObserver" in window ? new IntersectionObserver(function (en) {
+			en.forEach(function (e) { if (e.isIntersecting) e.target.classList.add("in"); });
+		}) : null;
+		function classify() {
+			var vh = window.innerHeight, maxScroll = document.documentElement.scrollHeight - vh, y = window.scrollY;
+			late = [];
+			els.forEach(function (el) {
+				var r = el.getBoundingClientRect(), top = r.top + y, bottom = r.bottom + y;
+				var isLate = top - maxScroll > vh * 0.68, isEarly = !isLate && bottom < vh * 0.3;
+				el.classList.toggle("reveal-late", isLate);
+				el.classList.toggle("reveal-static", isEarly);
+				if (isLate) { late.push(el); if (io) io.observe(el); else el.classList.add("in"); }
+			});
+		}
+		classify();
+		window.addEventListener("load", classify);
+		window.addEventListener("resize", classify);
 		if (window.CSS && CSS.supports && CSS.supports("animation-timeline: view()")) return;
 		function smooth(v) { return v * v * (3 - 2 * v); }
 		var pending = false, rects = [];
@@ -70,12 +90,12 @@
 			for (i = 0; i < els.length; i++) rects[i] = els[i].getBoundingClientRect();   // read everything first
 			for (i = 0; i < els.length; i++) {                                         // then write
 				var r = rects[i];
-				if (r.bottom < -50 || r.top > vh + 50) continue;
-				var d = Math.min(Math.max(r.height, 140), vh * 0.45);
-				var pin = Math.max(0, Math.min(1, (vh - r.top) / d));
-				var pout = Math.max(0, Math.min(1, r.bottom / d));
-				var v = smooth(Math.min(pin, pout));
-				var ty = (1 - v) * (pin <= pout ? 32 : -32), sc = 0.985 + 0.015 * v;
+				if (r.bottom < -50 || r.top > vh + 50 || els[i].classList.contains("reveal-late") || els[i].classList.contains("reveal-static")) continue;
+				var pin = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.30)));     // bottom 30 % of the screen
+				var pout = Math.max(0, Math.min(1, r.bottom / (vh * 0.22)));        // top 22 %
+				var v, ty, sc;
+				if (pin < 1) { v = 1 - Math.pow(1 - pin, 3); ty = (1 - v) * 90; sc = 0.92 + 0.08 * v; }
+				else { v = 1 - Math.pow(1 - pout, 2); ty = -(1 - v) * 60; sc = 0.95 + 0.05 * v; }
 				els[i].style.opacity = v.toFixed(3);
 				els[i].style.transform = v > 0.999 ? "none" : "translate3d(0," + ty.toFixed(1) + "px,0) scale(" + sc.toFixed(4) + ")";
 			}
