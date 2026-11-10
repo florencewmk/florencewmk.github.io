@@ -53,7 +53,7 @@
 	if ("IntersectionObserver" in window && !reduceMotion) {
 		var io = new IntersectionObserver(function (entries) {
 			entries.forEach(function (en) {
-				if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+				en.target.classList.toggle("in", en.isIntersecting);   // replays each time it scrolls into view
 			});
 		}, { rootMargin: "0px 0px -6% 0px" });
 		var groups = document.querySelectorAll(".section-head, .focus, .rows, .feature, .photo, .contact, .grid-cards, .figure, .prose, .photo-full");
@@ -183,78 +183,79 @@
 		var m = v.split(",").map(Number);
 		return m.length === 3 && m.every(function (n) { return !isNaN(n); }) ? m.map(function (n) { return n / 255; }) : fallback;
 	}
-	/* ---------- hero background: illustrated star warp ----------
-	   Stars stream outward from a point behind the engine, with soft nebula clouds and a
-	   few large glinting stars. The warp speeds up when the engine throttles up. */
+	/* ---------- hero background: travelling through deep space ----------
+	   A dense 3D field of small stars that the camera flies through, upward, like the
+	   rocket climbing. Near stars are bigger, brighter and leave short motion streaks; a few
+	   warm and blue stars glow. Stars are drawn in batches (one stroke per brightness level),
+	   so the whole field costs a handful of draw calls per frame. */
 	var sky = document.createElement("canvas");
 	sky.className = "sky"; sky.setAttribute("aria-hidden", "true");
 	canvas.parentNode.insertBefore(sky, canvas.parentNode.firstChild);
-	var sctx = sky.getContext("2d"), SD = 1, stars = [], glints = [], warp = 0.35;
-	var STAR_TINTS = ["255,255,255", "222,214,255", "200,220,255", "255,236,250", "190,236,255"];
-	function newStar(anywhere) {
-		var a = Math.random() * Math.PI * 2, r = anywhere ? Math.random() : Math.random() * 0.05;
-		return { a: a, r: r, z: anywhere ? Math.random() : 0, v: 0.25 + Math.random() * 0.75, tint: STAR_TINTS[(Math.random() * STAR_TINTS.length) | 0], size: Math.random() < 0.08 ? 1.8 : 0.9 + Math.random() * 0.6 };
+	var sctx = sky.getContext("2d", { alpha: false }), SD = 1, stars = [], fly = 0.5;
+	var LEVELS = 8, skyPaths = [], glowSprite = {};
+	var DEPTH = 6;                                                  // field depth in camera units
+	function makeGlow(rgb) {                                       // pre-rendered soft glow, drawn as an image
+		var g = document.createElement("canvas"); g.width = g.height = 64;
+		var x = g.getContext("2d"), rg = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+		rg.addColorStop(0, "rgba(255,255,255,1)"); rg.addColorStop(0.18, "rgba(" + rgb + ",0.75)");
+		rg.addColorStop(0.5, "rgba(" + rgb + ",0.18)"); rg.addColorStop(1, "rgba(" + rgb + ",0)");
+		x.fillStyle = rg; x.fillRect(0, 0, 64, 64); return g;
+	}
+	glowSprite.gold = makeGlow("255,176,90"); glowSprite.blue = makeGlow("110,140,255"); glowSprite.lilac = makeGlow("200,170,255");
+	function newStar(z) {
+		var r = Math.random();
+		return {
+			x: (Math.random() - 0.5) * 9, y: (Math.random() - 0.5) * 9, z: z,
+			b: 0.35 + Math.random() * 0.65,                              // intrinsic brightness
+			glow: r < 0.006 ? "gold" : r < 0.011 ? "blue" : r < 0.014 ? "lilac" : null
+		};
 	}
 	function skyResize() {
-		SD = Math.min(window.devicePixelRatio || 1, 2);
+		SD = Math.min(window.devicePixelRatio || 1, 1.25);
 		sky.width = Math.round(W * SD); sky.height = Math.round(H * SD);
-		var n = Math.round(Math.min(900, W * H / 1500));
-		stars = []; for (var i = 0; i < n; i++) stars.push(newStar(true));
-		glints = []; for (var g = 0; g < (mobile ? 5 : 9); g++) glints.push({ x: Math.random(), y: Math.random(), p: Math.random() * 6.28, s: 0.6 + Math.random() * 0.8 });
+		var n = Math.round(Math.min(2600, W * H / 450));
+		stars = []; for (var i = 0; i < n; i++) stars.push(newStar(0.15 + Math.random() * DEPTH));
 	}
 	function drawSky(dt) {
 		sctx.setTransform(SD, 0, 0, SD, 0, 0);
-		// motion trail: fade the previous frame instead of clearing it
-		sctx.globalCompositeOperation = "source-over";
-		sctx.fillStyle = "rgba(0,0,0," + (dt > 0 ? 0.32 : 1) + ")";
-		sctx.fillRect(0, 0, W, H);
-		var ox = cx, oy = tp + 0.55 * sc;                 // vanishing point: behind the engine's chamber
-		var reach = Math.hypot(Math.max(ox, W - ox), Math.max(oy, H - oy));
-
-		// nebula clouds, drifting slowly
-		sctx.globalCompositeOperation = "lighter";
-		var neb = [
-			[0.72, 0.38, 0.55, "120,90,220", 0.10],
-			[0.88, 0.75, 0.42, "70,110,230", 0.08],
-			[0.55, 0.12, 0.35, "190,120,230", 0.06],
-			[0.30, 0.85, 0.40, "90,80,200", 0.05]
-		];
-		for (var n = 0; n < neb.length; n++) {
-			var nb = neb[n], nx = (nb[0] + 0.02 * Math.sin(time * 0.05 + n)) * W, ny = (nb[1] + 0.02 * Math.cos(time * 0.04 + n * 2)) * H, nr = nb[2] * Math.max(W, H);
-			var ng = sctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
-			ng.addColorStop(0, "rgba(" + nb[3] + "," + (nb[4] * (dt > 0 ? 0.32 : 1)).toFixed(3) + ")");
-			ng.addColorStop(1, "rgba(" + nb[3] + ",0)");
-			sctx.fillStyle = ng; sctx.fillRect(0, 0, W, H);
-		}
-
-		// streaking stars
-		sctx.lineCap = "round";
+		sctx.fillStyle = "#000"; sctx.fillRect(0, 0, W, H);
+		var vx = W * (mobile ? 0.6 : 0.68), vy = -H * 0.08;          // vanishing point just above the top edge
+		var f = Math.max(W, H) * 0.42, step = fly * dt, streak = Math.min(0.2, 0.015 + fly * 0.035);
+		for (var l = 0; l < LEVELS * 2; l++) skyPaths[l] = [];
+		var glows = [];
 		for (var i = 0; i < stars.length; i++) {
-			var st = stars[i];
-			var r0 = st.r;
-			st.r += (0.02 + st.r * 1.6) * st.v * warp * dt;
-			if (st.r > 1.05) { stars[i] = newStar(false); continue; }
-			var d0 = Math.pow(r0, 1.6) * reach, d1 = Math.pow(st.r, 1.6) * reach;
-			var ca = Math.cos(st.a), sa = Math.sin(st.a);
-			var x0 = ox + ca * d0, y0 = oy + sa * d0, x1 = ox + ca * d1, y1 = oy + sa * d1;
-			var al = Math.min(1, st.r * 1.8) * 0.9;
-			sctx.strokeStyle = "rgba(" + st.tint + "," + al.toFixed(3) + ")";
-			sctx.lineWidth = st.size * (0.5 + st.r * 1.4);
-			sctx.beginPath(); sctx.moveTo(x0, y0); sctx.lineTo(x1 + ca * 0.5, y1 + sa * 0.5); sctx.stroke();
+			var s = stars[i];
+			s.z -= step;
+			if (s.z < 0.12) { stars[i] = newStar(DEPTH); continue; }
+			var x = vx + s.x / s.z * f, y = vy + s.y / s.z * f;
+			if (x < -40 || x > W + 40 || y < -40 || y > H + 40) { stars[i] = newStar(DEPTH * (0.6 + Math.random() * 0.4)); continue; }
+			var zt = s.z + streak, tx = vx + s.x / zt * f, ty = vy + s.y / zt * f;   // tail: where the star was a moment ago
+			var near = 1 - s.z / DEPTH;                                // 0 far .. 1 near
+			var a = s.b * (0.15 + near * near * 0.95);
+			var big = near > 0.72 ? 1 : 0;
+			var lv = Math.min(LEVELS - 1, (a * LEVELS) | 0);
+			var path = skyPaths[lv * 2 + big];
+			if (Math.abs(tx - x) + Math.abs(ty - y) < 0.6) { tx = x + 0.6; }   // far stars: a dot
+			path.push(tx, ty, x, y);
+			if (s.glow && near > 0.25) glows.push(s.glow, x, y, near);
 		}
-
-		// a few large glinting stars (four-point sparkles)
-		for (var g = 0; g < glints.length; g++) {
-			var gl = glints[g], gx = gl.x * W, gy = gl.y * H;
-			var tw = 0.5 + 0.5 * Math.sin(time * 1.3 + gl.p), L = 7 * gl.s * (0.6 + tw);
-			sctx.strokeStyle = "rgba(235,230,255," + (0.25 + 0.45 * tw).toFixed(3) + ")";
-			sctx.lineWidth = 1;
-			sctx.beginPath(); sctx.moveTo(gx - L, gy); sctx.lineTo(gx + L, gy); sctx.moveTo(gx, gy - L); sctx.lineTo(gx, gy + L); sctx.stroke();
-			var gg = sctx.createRadialGradient(gx, gy, 0, gx, gy, L * 0.9);
-			gg.addColorStop(0, "rgba(255,255,255," + (0.5 * tw).toFixed(3) + ")"); gg.addColorStop(1, "rgba(200,190,255,0)");
-			sctx.fillStyle = gg; sctx.beginPath(); sctx.arc(gx, gy, L * 0.9, 0, 6.283); sctx.fill();
+		sctx.lineCap = "round";
+		for (var k = 0; k < LEVELS * 2; k++) {
+			var p = skyPaths[k]; if (!p.length) continue;
+			var lvl = k >> 1, isBig = k & 1;
+			sctx.strokeStyle = "rgba(240,242,255," + ((lvl + 0.6) / LEVELS).toFixed(3) + ")";
+			sctx.lineWidth = isBig ? 1.9 : 1.05;
+			sctx.beginPath();
+			for (var m = 0; m < p.length; m += 4) { sctx.moveTo(p[m], p[m + 1]); sctx.lineTo(p[m + 2], p[m + 3]); }
+			sctx.stroke();
 		}
-		sctx.globalCompositeOperation = "source-over";
+		// coloured stars with a soft glow
+		for (var g = 0; g < glows.length; g += 4) {
+			var sz = 10 + glows[g + 3] * 26;
+			sctx.globalAlpha = 0.35 + glows[g + 3] * 0.6;
+			sctx.drawImage(glowSprite[glows[g]], glows[g + 1] - sz / 2, glows[g + 2] - sz / 2, sz, sz);
+		}
+		sctx.globalAlpha = 1;
 	}
 
 	function resize() {
@@ -263,7 +264,7 @@
 		// flame colours: outer, inner, core (r, g, b in CSS)
 		flameRGB = [cssRGB("--flame-outer", flameRGB[0]), cssRGB("--flame-inner", flameRGB[1]), cssRGB("--flame-core", flameRGB[2])];
 		var r = hero.getBoundingClientRect();
-		DPR = Math.min(window.devicePixelRatio || 1, 2);
+		DPR = Math.min(window.devicePixelRatio || 1, 1.5);
 		W = r.width; H = r.height;
 		canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
 		mobile = W < 760;
@@ -475,7 +476,7 @@
 		gx += (tgx * hold - gx) * 0.05; gz += (tgz * hold - gz) * 0.05;
 		if (active) { lpx += (px - lpx) * 0.2; lpy += (py - lpy) * 0.2; }
 		else { lpx += (-9999 - lpx) * 0.02; lpy += (-9999 - lpy) * 0.02; }
-		warp += ((0.35 + 0.9 * Math.max(0, throttle - 0.6) / 0.4) * (1 - ee * 0.6) - warp) * 0.05;   // faster stars when the engine throttles up
+		fly += ((0.45 + 0.9 * Math.max(0, throttle - 0.6) / 0.4) * (1 - ee * 0.5) - fly) * 0.03;   // fly faster when the engine throttles up
 		drawSky(dt);
 		draw();
 		if (thrustEl) thrustEl.textContent = String(Math.round(throttle * 100 * Math.max(0, 1 - ee * 1.8))).padStart(3, "0");
@@ -510,6 +511,6 @@
 	}
 
 	resize();
-	if (reduceMotion) { time = 1; drawSky(0); for (var q = 0; q < 40; q++) drawSky(0.03); draw(); }
+	if (reduceMotion) { time = 1; drawSky(0); draw(); }
 	else raf = requestAnimationFrame(tick);
 })();

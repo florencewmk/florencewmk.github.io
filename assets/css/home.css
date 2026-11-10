@@ -365,3 +365,23 @@ ol { list-style: none; margin: 0; padding: 0; }
 .contact-note { color: var(--muted); font-size: 18px; margin-bottom: 4px; }
 .footer { font-family: var(--sans); font-size: 13px; letter-spacing: 0; text-transform: none; }
 .crumb { font-family: var(--sans); font-size: 14px; }
+
+/* performance: no backdrop blur on hero buttons, which sit over the animated star field */
+.hero .btn-solid, .hero .btn-glass { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.hero .btn-glass { background: rgba(20, 20, 26, .72); }
+
+/* projects list without the degree column */
+.rows-nodate .row, .rows-nodate .row-link { grid-template-columns: 1fr auto; }
+@media (max-width: 760px) { .rows-nodate .row, .rows-nodate .row-link { grid-template-columns: 1fr; } .rows-nodate .row-place:empty { display: none; } }
+
+/* brighter hover glow: stronger purple sheen, lit border and soft outer glow */
+.shine::after {
+	background:
+		radial-gradient(280px circle at var(--mx) var(--my), color-mix(in srgb, var(--accent) 34%, transparent), transparent 60%),
+		radial-gradient(90px circle at var(--mx) var(--my), rgba(255, 255, 255, .16), transparent 70%);
+}
+.focus-item:hover, .feature-item:hover, .grid-cards .card:hover {
+	border-color: rgba(205, 190, 255, .5);
+	box-shadow: inset 0 1px 0 rgba(220, 208, 255, .22), 0 0 0 1px rgba(185, 166, 242, .12), 0 18px 60px -18px rgba(168, 140, 255, .55);
+}
+.row:hover { background: linear-gradient(90deg, rgba(var(--glass-purple), .14), rgba(var(--glass-purple), 0) 75%); }
