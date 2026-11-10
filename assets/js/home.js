@@ -62,7 +62,7 @@
 			var kids = g.matches(".focus, .rows, .feature, .grid-cards") ? g.children : [g];
 			Array.prototype.forEach.call(kids, function (el, i) {
 				el.classList.add("reveal");
-				el.style.transitionDelay = Math.min(i, 6) * 70 + "ms";
+				el.style.transitionDelay = Math.min(i, 4) * 40 + "ms";
 				io.observe(el);
 			});
 		});
@@ -168,7 +168,7 @@
 	];
 
 	// --- state
-	var W = 0, H = 0, DPR = 1, cx = 0, top = 0, scale = 1, mobile = false;
+	var W = 0, H = 0, BX = 0, BW = 0, DPR = 1, cx = 0, top = 0, scale = 1, mobile = false;
 	var spin = -0.1, view = 0.3;
 	var gx = 0, gz = 0, tgx = 0, tgz = 0;
 	var throttle = 0.6, tgtThrottle = 0.6;
@@ -214,7 +214,7 @@
 	function skyResize() {
 		SD = 1;
 		sky.width = Math.round(W * SD); sky.height = Math.round(H * SD);
-		var n = Math.round(Math.min(1100, W * H / 1000));
+		var n = Math.round(Math.min(800, W * H / 1500));
 		stars = []; for (var i = 0; i < n; i++) stars.push(newStar(0.15 + Math.random() * DEPTH));
 	}
 	function drawSky(dt) {
@@ -267,10 +267,13 @@
 		var r = hero.getBoundingClientRect();
 		DPR = Math.min(window.devicePixelRatio || 1, 1.25);
 		W = r.width; H = r.height;
-		canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
 		mobile = W < 760;
 		if (mobile) { cx = W * 0.68; top = H * 0.13; scale = Math.min(W * 0.34, H * 0.18); }
 		else { cx = W * 0.71; top = H * 0.25; scale = Math.min(W * 0.19, H * 0.27); }
+		// engine and flame canvases only cover a strip around the engine, not the whole hero
+		BX = Math.max(0, Math.floor(cx - 1.7 * scale)); BW = Math.min(W, Math.ceil(cx + 1.7 * scale)) - BX;
+		[canvas, flame.el].forEach(function (c) { c.style.left = BX + "px"; c.style.width = BW + "px"; });
+		canvas.width = Math.round(BW * DPR); canvas.height = Math.round(H * DPR);
 		flame.resize();
 		prep(); skyResize();
 		draw(0);
@@ -365,11 +368,12 @@
 			gc.remove();
 		}
 		return {
+			el: gc,
 			webgl: !!gl,
 			resize: function () {
 				if (!gl) return;
 				gDPR = 0.5;                                        // flame is soft anyway: shade at half resolution, the browser upscales it
-				gc.width = Math.round(W * gDPR); gc.height = Math.round(H * gDPR);
+				gc.width = Math.round(BW * gDPR); gc.height = Math.round(H * gDPR);
 				gl.viewport(0, 0, gc.width, gc.height);
 			},
 			// exit (css px), direction, radius, length, throttle, fire
@@ -381,12 +385,12 @@
 				var ends = [[ex + uy * R * 3, ey - ux * R * 3], [ex - uy * R * 3, ey + ux * R * 3], [ex + ux * L * 1.2 + uy * R * 4.5, ey + uy * L * 1.2 - ux * R * 4.5], [ex + ux * L * 1.2 - uy * R * 4.5, ey + uy * L * 1.2 + ux * R * 4.5]];
 				var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
 				ends.forEach(function (e) { x0 = Math.min(x0, e[0]); y0 = Math.min(y0, e[1]); x1 = Math.max(x1, e[0]); y1 = Math.max(y1, e[1]); });
-				x0 = Math.max(0, x0 - R); y0 = Math.max(0, y0 - R); x1 = Math.min(W, x1 + R); y1 = Math.min(H, y1);
+				x0 = Math.max(BX, x0 - R) - BX; y0 = Math.max(0, y0 - R); x1 = Math.min(BX + BW, x1 + R) - BX; y1 = Math.min(H, y1);
 				if (x1 <= x0 || y1 <= y0) return true;
 				gl.scissor(Math.floor(x0 * gDPR), Math.floor((H - y1) * gDPR), Math.ceil((x1 - x0) * gDPR), Math.ceil((y1 - y0) * gDPR));
 				gl.uniform2f(loc.uRes, gc.width, gc.height);
 				gl.uniform1f(loc.uTime, time);
-				gl.uniform2f(loc.uExit, ex * gDPR, ey * gDPR);
+				gl.uniform2f(loc.uExit, (ex - BX) * gDPR, ey * gDPR);
 				gl.uniform2f(loc.uDir, ux, uy);
 				gl.uniform1f(loc.uR, R * gDPR);
 				gl.uniform1f(loc.uLen, L * gDPR);
@@ -405,8 +409,8 @@
 	function draw() {
 		if (!W) return;
 		prep();
-		ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-		ctx.clearRect(0, 0, W, H);
+		ctx.setTransform(DPR, 0, 0, DPR, -BX * DPR, 0);
+		ctx.clearRect(BX, 0, BW, H);
 
 		// nozzle exit and plume direction on screen
 		setPart(2);
@@ -459,11 +463,9 @@
 		}
 	}
 
-	var FRAME = 1000 / 40, acc = 0;                   // cap the hero at ~40 fps: plenty for a background, far less work
 	function tick(t) {
 		raf = 0;
 		if (!visible || document.hidden) return;
-		if (lastT && t - lastT < FRAME - 1) { raf = requestAnimationFrame(tick); return; }
 		var dt = Math.min(0.05, lastT ? (t - lastT) / 1000 : 0.016); lastT = t; time += dt;
 		var active = t - lastMove < 1600;
 		if (!assembledAt) assembledAt = t + 600;            // start in exploded view, then assemble and ignite
