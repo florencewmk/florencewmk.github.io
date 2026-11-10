@@ -401,3 +401,11 @@ ol { list-style: none; margin: 0; padding: 0; }
 
 /* keep "About me" on one line in the nav */
 .nav a { white-space: nowrap; }
+
+/* ---------- Performance ----------
+   Backdrop blur on every card and row, and blur filters on scroll reveal, made scrolling stutter.
+   Glass surfaces now use a solid tint instead (only the small nav keeps real blur). */
+.glass:not(.nav), .btn-solid, .btn-glass { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.glass:not(.nav) { background: linear-gradient(180deg, rgba(40, 34, 62, .72), rgba(22, 19, 36, .72)); }
+.reveal, .reveal.in, .reveal.above { filter: none; transition-property: opacity, transform; }
+.sky, .flame, .engine { contain: strict; }

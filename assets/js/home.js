@@ -212,9 +212,9 @@
 		};
 	}
 	function skyResize() {
-		SD = Math.min(window.devicePixelRatio || 1, 1.25);
+		SD = 1;
 		sky.width = Math.round(W * SD); sky.height = Math.round(H * SD);
-		var n = Math.round(Math.min(2600, W * H / 450));
+		var n = Math.round(Math.min(1100, W * H / 1000));
 		stars = []; for (var i = 0; i < n; i++) stars.push(newStar(0.15 + Math.random() * DEPTH));
 	}
 	function drawSky(dt) {
@@ -265,7 +265,7 @@
 		// flame colours: outer, inner, core (r, g, b in CSS)
 		flameRGB = [cssRGB("--flame-outer", flameRGB[0]), cssRGB("--flame-inner", flameRGB[1]), cssRGB("--flame-core", flameRGB[2])];
 		var r = hero.getBoundingClientRect();
-		DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+		DPR = Math.min(window.devicePixelRatio || 1, 1.25);
 		W = r.width; H = r.height;
 		canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
 		mobile = W < 760;
@@ -318,7 +318,7 @@
 				"uniform vec2 uRes;uniform float uTime;uniform vec2 uExit;uniform vec2 uDir;uniform float uR;uniform float uLen;uniform float uThr;uniform float uFire;uniform vec3 uC1;uniform vec3 uC2;uniform vec3 uC3;",
 				"float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
 				"float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);}",
-				"float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}",
+				"float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*noise(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}",
 				"void main(){",
 				"  vec2 p=vec2(gl_FragCoord.x,uRes.y-gl_FragCoord.y);",
 				"  vec2 d=p-uExit; vec2 n=vec2(-uDir.y,uDir.x);",
@@ -368,7 +368,7 @@
 			webgl: !!gl,
 			resize: function () {
 				if (!gl) return;
-				gDPR = Math.min(window.devicePixelRatio || 1, 1.5);
+				gDPR = 0.5;                                        // flame is soft anyway: shade at half resolution, the browser upscales it
 				gc.width = Math.round(W * gDPR); gc.height = Math.round(H * gDPR);
 				gl.viewport(0, 0, gc.width, gc.height);
 			},
@@ -459,9 +459,11 @@
 		}
 	}
 
+	var FRAME = 1000 / 40, acc = 0;                   // cap the hero at ~40 fps: plenty for a background, far less work
 	function tick(t) {
 		raf = 0;
-		if (!visible) return;
+		if (!visible || document.hidden) return;
+		if (lastT && t - lastT < FRAME - 1) { raf = requestAnimationFrame(tick); return; }
 		var dt = Math.min(0.05, lastT ? (t - lastT) / 1000 : 0.016); lastT = t; time += dt;
 		var active = t - lastMove < 1600;
 		if (!assembledAt) assembledAt = t + 600;            // start in exploded view, then assemble and ignite
@@ -510,6 +512,10 @@
 			if (visible && !raf && !reduceMotion) { lastT = 0; raf = requestAnimationFrame(tick); }
 		}).observe(hero);
 	}
+
+	document.addEventListener("visibilitychange", function () {
+		if (!document.hidden && visible && !raf && !reduceMotion) { lastT = 0; raf = requestAnimationFrame(tick); }
+	});
 
 	resize();
 	if (reduceMotion) { time = 1; drawSky(0); draw(); }
