@@ -385,3 +385,19 @@ ol { list-style: none; margin: 0; padding: 0; }
 	box-shadow: inset 0 1px 0 rgba(220, 208, 255, .22), 0 0 0 1px rgba(185, 166, 242, .12), 0 18px 60px -18px rgba(168, 140, 255, .55);
 }
 .row:hover { background: linear-gradient(90deg, rgba(var(--glass-purple), .14), rgba(var(--glass-purple), 0) 75%); }
+
+/* Projects page: title on the left, description beside it */
+.rows-nodate .row-main { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 32px; align-items: baseline; }
+.rows-nodate .row-main em { margin-top: 0; }
+@media (max-width: 760px) {
+	.rows-nodate .row-main { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* Scroll reveal replays in both directions: items that left through the top come back down from above */
+.reveal { transform: translateY(40px) scale(.985); }
+.reveal.above { transform: translateY(-40px) scale(.985); }
+.reveal.in { transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal, .reveal.above { transform: none; } }
+
+/* keep "About me" on one line in the nav */
+.nav a { white-space: nowrap; }

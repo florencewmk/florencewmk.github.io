@@ -53,7 +53,8 @@
 	if ("IntersectionObserver" in window && !reduceMotion) {
 		var io = new IntersectionObserver(function (entries) {
 			entries.forEach(function (en) {
-				en.target.classList.toggle("in", en.isIntersecting);   // replays each time it scrolls into view
+				if (en.isIntersecting) { en.target.classList.add("in"); }   // replays each time it scrolls into view
+				else { en.target.classList.remove("in"); en.target.classList.toggle("above", en.boundingClientRect.top < 0); }
 			});
 		}, { rootMargin: "0px 0px -6% 0px" });
 		var groups = document.querySelectorAll(".section-head, .focus, .rows, .feature, .photo, .contact, .grid-cards, .figure, .prose, .photo-full");
