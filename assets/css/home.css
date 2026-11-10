@@ -84,7 +84,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 .nav-cta { padding: 8px 15px; border-radius: 999px; font-size: 13.5px; font-weight: 500; color: #000; background: var(--ink); transition: opacity .2s; }
 .nav-cta:hover { opacity: .85; }
 @media (max-width: 680px) {
-	.nav li:nth-child(1), .nav li:nth-child(2), .nav li:nth-child(5) { display: none; }
+	.nav li:nth-child(1), .nav li:nth-child(2), .nav li:nth-child(3), .nav li:nth-child(6) { display: none; }
 }
 
 /* ---------- Hero ---------- */
@@ -95,6 +95,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 	overflow: hidden;
 }
 .engine, .flame { position: absolute; inset: 0; width: 100%; height: 100%; }
+.flame { -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); mask-image: linear-gradient(to bottom, #000 72%, transparent 100%); }  /* flame fades out instead of a hard edge */
 @media (max-width: 760px) { .hero-inner::before { content: ""; position: absolute; inset: -40px -24px; z-index: -1; background: radial-gradient(closest-side, rgba(0, 0, 0, .88), rgba(0, 0, 0, .5) 70%, transparent); } }
 .hero-inner { position: relative; z-index: 2; width: 100%; max-width: var(--max); margin: 0 auto; pointer-events: none; }
 .hero-inner a { pointer-events: auto; }
@@ -220,33 +221,139 @@ ol { list-style: none; margin: 0; padding: 0; }
 }
 
 /* ==========================================================================
-   Accent layer – one main accent and one secondary, used sparingly on black.
-   Change the palette here.
+   Accent layer – "Amethyst": refined purples taken from the flame, used as
+   flat colours on black. Change the palette here.
    ========================================================================== */
 :root {
-	/* palette from Florence's bioprinting slides, used as flat colours */
-	--accent: #e394ad;        /* pink – main accent */
-	--accent-2: #64dfff;      /* cyan – secondary accent */
-	--accent-ink: #160810;    /* text on accent buttons */
-	--wire: 235, 220, 240;    /* rocket wireframe (r, g, b) */
-	--flame-outer: 180, 154, 216;   /* flame: outer (lavender) */
-	--flame-inner: 100, 223, 255;   /* flame: inner (cyan) */
-	--flame-core: 245, 250, 255;    /* flame: core (white) */
+	--accent: #c9bbf7;        /* soft amethyst – text accents */
+	--accent-2: #a9b8f5;      /* pale periwinkle – secondary text accents */
+	--glass-purple: 168, 140, 255;   /* tint for purple glass surfaces (r, g, b) */
+	--accent-ink: #0d0a18;    /* text on accent buttons */
+	--fw: var(--accent);      /* FW mark colour – changes per section while scrolling */
+	--wire: 214, 208, 240;    /* rocket wireframe (r, g, b) */
+	/* hydrogen flame: faint violet sheath, pale ice-blue body, white-blue core */
+	--flame-outer: 150, 140, 235;
+	--flame-inner: 172, 204, 255;
+	--flame-core: 238, 244, 255;
 }
-.hero .label, .section-head .index, .contact .index { color: var(--accent); }
-.btn-solid, .nav-cta { color: var(--accent-ink); background: var(--accent); }
-.btn-solid:hover, .nav-cta:hover { background: var(--accent-2); opacity: 1; }
-.brand { background: var(--accent); color: var(--accent-ink); }
-.stat-num { color: var(--accent-2); }
-.row:hover .row-main strong, a.feature-item:hover h3 { color: var(--accent-2); }
+.hero .label, .section-head .index, .contact .index, .page-head .label { color: var(--accent); }
+/* purple glass button: frosted, tinted, light top edge, soft glow */
+.btn-solid {
+	color: #f4f0ff;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 55%),
+		rgba(var(--glass-purple), .22);
+	border: 1px solid rgba(210, 196, 255, .38);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .35),
+		inset 0 -1px 0 rgba(var(--glass-purple), .25),
+		0 10px 34px -12px rgba(var(--glass-purple), .65);
+	backdrop-filter: blur(18px) saturate(170%); -webkit-backdrop-filter: blur(18px) saturate(170%);
+	text-shadow: 0 0 18px rgba(var(--glass-purple), .5);
+}
+.btn-solid:hover {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, 0) 55%),
+		rgba(var(--glass-purple), .32);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, .45),
+		inset 0 -1px 0 rgba(var(--glass-purple), .3),
+		0 14px 44px -12px rgba(var(--glass-purple), .8);
+}
+.row:hover .row-main strong, a.feature-item:hover h3 { color: var(--accent); }
 .row-date { color: var(--faint); }
 .more, .arrow { color: var(--accent); }
 .focus-item .label, .feature-text .label { color: var(--accent-2); }
 .hud > span::before { border-color: var(--accent); }
 .shine::after {
 	background:
-		radial-gradient(260px circle at var(--mx) var(--my), color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 60%),
+		radial-gradient(260px circle at var(--mx) var(--my), color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
 		radial-gradient(80px circle at var(--mx) var(--my), rgba(255, 255, 255, .10), transparent 70%);
 }
 ::selection { background: color-mix(in srgb, var(--accent) 40%, transparent); }
 :focus-visible { outline-color: var(--accent); }
+
+/* ---------- Nav: only the FW mark carries colour; it shifts per section ---------- */
+/* FW mark: a glass bead tinted by the current section colour */
+.brand {
+	color: #fff;
+	background:
+		radial-gradient(120% 90% at 30% 15%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 55%),
+		color-mix(in srgb, var(--fw) 55%, transparent);
+	border: 1px solid color-mix(in srgb, var(--fw) 60%, white 20%);
+	box-shadow: inset 0 -3px 8px color-mix(in srgb, var(--fw) 45%, transparent), 0 0 22px -4px var(--fw);
+	text-shadow: 0 1px 6px rgba(0, 0, 0, .35);
+	transition: background-color .8s var(--ease), box-shadow .8s var(--ease), border-color .8s var(--ease);
+}
+.nav-cta { color: var(--muted); background: transparent; padding: 7px 12px; font-weight: 400; }
+.nav-cta:hover { color: var(--ink); background: rgba(255, 255, 255, .08); opacity: 1; }
+.nav li a.is-active, .nav-cta.is-active { color: var(--ink); background: rgba(255, 255, 255, .08); }
+
+/* ---------- Rows with detail (education, CV) ---------- */
+.row-main ul { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: 15px; }
+.row-main ul li { margin: 4px 0; }
+.row-main ul li::marker { color: var(--accent); }
+.row-main a { color: var(--accent); }
+.row-main a:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   Subpages (CV, Projects, Life and detail pages)
+   ========================================================================== */
+.page-head { max-width: var(--max); margin: 0 auto; padding: 150px var(--gutter) 0; }
+.page-head h1 { margin: 18px 0 18px; font-size: clamp(52px, 9vw, 120px); letter-spacing: -0.05em; line-height: .95; }
+.page-head .lede { max-width: 640px; }
+.crumb { display: inline-flex; gap: 8px; color: var(--faint); }
+.crumb a { color: var(--muted); }
+.crumb a:hover { color: var(--accent); }
+.page .section:first-of-type { padding-top: clamp(56px, 8vw, 96px); }
+
+/* skills / languages grid */
+.grid-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.grid-cards .card { padding: 26px 26px 28px; border-radius: 22px; }
+.grid-cards h3 { font-size: 21px; margin: 10px 0 8px; }
+.grid-cards p { color: var(--muted); font-size: 15.5px; }
+@media (max-width: 760px) { .grid-cards { grid-template-columns: 1fr; } }
+
+/* project detail figures */
+.figure { margin: 0; }
+.figure .plate { border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid var(--line); }
+.figure .plate img { width: 100%; height: auto; }
+.figure figcaption { margin-top: 14px; color: var(--muted); font-size: 15.5px; max-width: 720px; }
+.figure + .figure { margin-top: 56px; }
+.prose { max-width: 720px; color: var(--muted); font-size: 18px; line-height: 1.6; }
+.prose h2 { color: var(--ink); font-size: 28px; margin: 48px 0 12px; }
+.back { display: inline-flex; margin-top: 48px; color: var(--accent); font-size: 15.5px; }
+.back:hover { text-decoration: underline; }
+.photo-full { border-radius: 26px; overflow: hidden; border: 1px solid var(--line); }
+.photo-full img { width: 100%; height: auto; }
+@media (max-width: 680px) {
+	.page .nav li { display: block !important; }   /* subpages have only four links, so show them all */
+	.page .nav li a { padding: 6px 8px; }
+}
+
+/* ---------- glassy purple details ---------- */
+.glass { box-shadow: inset 0 1px 0 rgba(220, 208, 255, .16), inset 0 -1px 0 rgba(255, 255, 255, .03), 0 20px 50px -20px rgba(0, 0, 0, .8); }
+.focus-item, .feature-item, .grid-cards .card {
+	background:
+		linear-gradient(180deg, rgba(var(--glass-purple), .07), rgba(255, 255, 255, .015) 60%),
+		var(--glass-bg);
+	border-color: rgba(200, 186, 255, .14);
+}
+.focus-item:hover, .feature-item:hover, .grid-cards .card:hover { border-color: rgba(200, 186, 255, .3); }
+.row:hover { background: linear-gradient(90deg, rgba(var(--glass-purple), .07), rgba(var(--glass-purple), 0) 70%); }
+.nav.glass { border-color: rgba(200, 186, 255, .16); }
+
+/* ==========================================================================
+   Plain style: sentence-case labels, no numbering, no HUD decoration.
+   ========================================================================== */
+.mono { text-transform: none; letter-spacing: 0; font-size: 13px; }
+.label { font-family: var(--sans); font-size: 14px; letter-spacing: 0; text-transform: none; }
+.hero .label { font-size: 17px; }
+.section-head { display: block; margin-bottom: 32px; }
+.section-head h2 { margin-top: 0; }
+.row-place { font-family: var(--sans); font-size: 14px; letter-spacing: 0; text-transform: none; }
+.photo-cap .label { color: rgba(245, 245, 247, .75); }
+.contact h2 { margin: 0 0 10px; }
+.contact-note { color: var(--muted); font-size: 18px; margin-bottom: 4px; }
+.footer { font-family: var(--sans); font-size: 13px; letter-spacing: 0; text-transform: none; }
+.crumb { font-family: var(--sans); font-size: 14px; }

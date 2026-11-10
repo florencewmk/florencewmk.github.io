@@ -5,6 +5,7 @@
       on touch screens) separates its assemblies again. The flame throttles up while the
       cursor moves.
    3. Scroll reveal
+   4. Section tone (FW mark colour follows the section in view)
    No dependencies. */
 (function () {
 	"use strict";
@@ -28,6 +29,28 @@
 		if (shineTarget && !shinePending) { shinePending = true; requestAnimationFrame(applyShine); }
 	}, { passive: true });
 
+	/* ---------- 4. Section tone: the FW mark changes colour with the section in view,
+	              and the matching nav link is marked active ---------- */
+	(function () {
+		var root = document.documentElement;
+		var secs = Array.prototype.slice.call(document.querySelectorAll("[data-tone]"));
+		if (!secs.length) return;
+		var links = Array.prototype.slice.call(document.querySelectorAll(".nav a[href^='#']"));
+		var current = null, pending = false;
+		function update() {
+			pending = false;
+			var mid = window.innerHeight * 0.45, pick = secs[0];
+			for (var i = 0; i < secs.length; i++) { if (secs[i].getBoundingClientRect().top <= mid) pick = secs[i]; }
+			if (pick === current) return;
+			current = pick;
+			root.style.setProperty("--fw", pick.getAttribute("data-tone"));
+			links.forEach(function (a) { a.classList.toggle("is-active", !!pick.id && a.getAttribute("href") === "#" + pick.id); });
+		}
+		window.addEventListener("scroll", function () { if (!pending) { pending = true; requestAnimationFrame(update); } }, { passive: true });
+		window.addEventListener("resize", update);
+		update();
+	})();
+
 	/* ---------- 3. Scroll reveal ---------- */
 	if ("IntersectionObserver" in window && !reduceMotion) {
 		var io = new IntersectionObserver(function (entries) {
@@ -35,9 +58,9 @@
 				if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
 			});
 		}, { rootMargin: "0px 0px -6% 0px" });
-		var groups = document.querySelectorAll(".stats, .section-head, .focus, .rows, .feature, .photo, .contact");
+		var groups = document.querySelectorAll(".section-head, .focus, .rows, .feature, .photo, .contact, .grid-cards, .figure, .prose, .photo-full");
 		Array.prototype.forEach.call(groups, function (g) {
-			var kids = g.matches(".stats, .focus, .rows, .feature") ? g.children : [g];
+			var kids = g.matches(".focus, .rows, .feature, .grid-cards") ? g.children : [g];
 			Array.prototype.forEach.call(kids, function (el, i) {
 				el.classList.add("reveal");
 				el.style.transitionDelay = Math.min(i, 6) * 70 + "ms";
@@ -156,7 +179,7 @@
 	var hudMode = document.querySelector(".hud-bl");
 
 	var wireRGB = "245,245,247";
-	var flameRGB = [[0.39, 0.87, 1], [0.71, 0.6, 0.85], [0.96, 0.98, 1]];
+	var flameRGB = [[0.71, 0.6, 0.85], [0.39, 0.87, 1], [0.96, 0.98, 1]];
 	function cssRGB(name, fallback) {
 		var v = (getComputedStyle(document.documentElement).getPropertyValue(name) || "").trim();
 		var m = v.split(",").map(Number);
@@ -232,16 +255,20 @@
 				"  float w=uR*(0.9+0.5*t+0.6*t*t)*(0.78+0.5*tu);",
 				"  float rr=abs(b)/w;",
 				"  float body=smoothstep(1.0,0.1,rr)*smoothstep(1.0,0.2,t+0.25*(tu-0.5));",
-				"  float core=exp(-rr*rr*5.0)*exp(-t*2.6);",
-				"  float sp=uR*(1.35+0.45*uThr);",
+				// hydrogen–oxygen plume: mostly transparent, pale ice-blue with faint violet edges,
+				// a white-blue core at the nozzle and soft, blurred shock diamonds
+				"  float core=exp(-rr*rr*6.0)*exp(-t*3.0);",
+				"  float sp=uR*(1.1+0.3*uThr);",
 				"  float ph=fract(a/sp);",
-				"  float dia=exp(-pow(abs(b)/uR*2.6+abs(ph-0.55)*3.4,2.)*2.2)*exp(-a/(sp*3.2))*step(0.,a);",
-				"  float heat=body*(0.3+0.65*fi)+core*0.85+dia*0.8;",
+				"  float dq=abs(b)/uR*2.6+(1.0-cos(6.2832*ph))*0.9;",
+				"  float dia=exp(-dq*dq*0.9)*exp(-a/(sp*4.0))*smoothstep(sp*0.3,sp*1.0,a)*(0.85+0.3*fi);",
+				"  float heat=body*(0.12+0.3*fi)+core*(0.7+0.2*fi)+dia*0.45;",
 				"  heat*=uFire*(0.55+0.45*uThr)*smoothstep(-uR*0.4,uR*0.1,a);",
-				"  vec3 c=mix(uC1*0.45,uC1,smoothstep(0.04,0.32,heat));",                 // outer flame colour
-				"  c=mix(c,uC2,smoothstep(0.32,0.66,heat));",                             // inner flame colour
-				"  c=mix(c,uC3,smoothstep(0.66,1.05,heat));",                             // core
-				"  float al=clamp(heat*1.35,0.,1.);",
+				"  float h=1.0-exp(-heat*1.6);",
+				"  vec3 c=mix(uC1*0.5,uC1,smoothstep(0.02,0.25,h));",
+				"  c=mix(c,uC2,smoothstep(0.25,0.6,h));",
+				"  c=mix(c,uC3,smoothstep(0.6,0.95,h));",
+				"  float al=clamp(h*0.95,0.,0.85);",
 				"  gl_FragColor=vec4(c*al,al);",
 				"}"
 			].join("\n");
