@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Repositories, Florence Wong</title>
+	<meta name="description" content="Code and repositories by Florence Wong on GitHub." />
+	<meta name="theme-color" content="#000000" />
+	<meta name="color-scheme" content="dark" />
+	<link rel="stylesheet" href="../../assets/css/home.css?v=20261110h" />
+</head>
+<body class="page">
+	<a class="skip" href="#main">Skip to content</a>
+
+	<header class="nav-wrap">
+		<nav class="nav glass shine" aria-label="Main">
+			<a class="brand-link" href="../../index.html" aria-label="Florence Wong, home"><span class="brand">FW</span><span class="brand-name">Florence Wong</span></a>
+			<ul>
+				<li><a href="../../pages/projects/projects.html">Work</a></li>
+				<li><a href="../../pages/repositories/repositories.html" class="is-active" aria-current="page"><span class="nav-long">Repositories</span><span class="nav-short">Repos</span></a></li>
+				<li><a href="../../pages/life/life.html">About</a></li>
+				<li><a href="../../pages/cv/cv.html" class="nav-cv">CV</a></li>
+			</ul>
+			<a class="nav-cta" href="../../index.html#contact">Get in touch</a>
+		</nav>
+	</header>
+
+	<main id="main">
+		<header class="page-head" data-tone="#9fb4ff">
+			<h1>Repositories</h1>
+			<p class="lede">Code from my studies and side projects. This list comes straight from <a class="more" style="margin:0;font-size:inherit" href="https://github.com/florencewmk" target="_blank" rel="noopener noreferrer">my GitHub</a>, so it's always up to date.</p>
+		</header>
+
+		<section class="section" aria-label="Repositories" data-tone="#9fb4ff">
+			<div class="repo-tools">
+				<input class="repo-search" id="repo-search" type="search" placeholder="Search repositories" aria-label="Search repositories" />
+				<div class="repo-chips" id="repo-chips" role="group" aria-label="Filter by language"></div>
+			</div>
+			<div class="grid-cards" id="repo-grid" aria-live="polite">
+				<div class="repo-skel"></div><div class="repo-skel"></div><div class="repo-skel"></div><div class="repo-skel"></div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+	(function () {
+		var USER = "florencewmk";
+		var HIDE_FORKS = true;
+		var PINNED = []; // repo names to show first, e.g. ["thesis-code"]
+		var COLORS = { JavaScript: "#f1e05a", TypeScript: "#3178c6", Python: "#3572A5", HTML: "#e34c26", CSS: "#663399", "C++": "#f34b7d", C: "#555555", "C#": "#178600", Java: "#b07219", MATLAB: "#e16737", "Jupyter Notebook": "#DA5B0B", Julia: "#a270ba", R: "#198CE7", Fortran: "#4d41b1", Shell: "#89e051", Go: "#00ADD8", Rust: "#dea584", TeX: "#3D6117" };
+		var grid = document.getElementById("repo-grid"), chips = document.getElementById("repo-chips"), search = document.getElementById("repo-search");
+		var repos = [], lang = "All";
+		function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+		function ago(d) {
+			var days = Math.round((Date.now() - new Date(d)) / 864e5);
+			if (days < 1) return "today"; if (days < 30) return days + "d ago";
+			if (days < 365) return Math.round(days / 30) + "mo ago"; return Math.round(days / 365) + "y ago";
+		}
+		function drawChips() {
+			var langs = ["All"]; repos.forEach(function (r) { if (r.language && langs.indexOf(r.language) < 0) langs.push(r.language); });
+			chips.innerHTML = langs.length < 3 ? "" : langs.map(function (l) { return '<button class="repo-chip" type="button" data-lang="' + esc(l) + '" aria-pressed="' + (l === lang) + '">' + esc(l) + "</button>"; }).join("");
+		}
+		function drawGrid() {
+			var q = search.value.trim().toLowerCase();
+			var list = repos.filter(function (r) {
+				return (lang === "All" || r.language === lang) && (!q || r.name.toLowerCase().indexOf(q) > -1 || (r.description || "").toLowerCase().indexOf(q) > -1 || (r.topics || []).some(function (t) { return t.indexOf(q) > -1; }));
+			});
+			if (!list.length) { grid.innerHTML = '<p class="repo-status">No repositories match.</p>'; return; }
+			grid.innerHTML = list.map(function (r) {
+				return '<a class="card repo-card glass shine" href="' + esc(r.html_url) + '" target="_blank" rel="noopener noreferrer">' +
+					'<div class="repo-top"><h3>' + esc(r.name) + '</h3><span class="arrow" aria-hidden="true">&#8599;</span></div>' +
+					"<p>" + esc(r.description || "No description yet.") + "</p>" +
+					((r.topics && r.topics.length) ? '<div class="repo-topics">' + r.topics.slice(0, 4).map(function (t) { return '<span class="repo-topic">' + esc(t) + "</span>"; }).join("") + "</div>" : "") +
+					'<div class="repo-meta">' +
+						(r.language ? '<span><i class="repo-dot" style="background:' + (COLORS[r.language] || "#c9bbf7") + '"></i>' + esc(r.language) + "</span>" : "") +
+						(r.stargazers_count ? '<span aria-label="' + r.stargazers_count + ' stars">&#9733; ' + r.stargazers_count + "</span>" : "") +
+						"<span>Updated " + ago(r.pushed_at) + "</span>" +
+					"</div></a>";
+			}).join("");
+		}
+		chips.addEventListener("click", function (e) { var b = e.target.closest(".repo-chip"); if (!b) return; lang = b.getAttribute("data-lang"); drawChips(); drawGrid(); });
+		search.addEventListener("input", drawGrid);
+		fetch("https://api.github.com/users/" + USER + "/repos?per_page=100&sort=pushed")
+			.then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+			.then(function (data) {
+				repos = data.filter(function (r) { return !(HIDE_FORKS && r.fork) && !r.archived && r.name.toLowerCase() !== USER + ".github.io"; })
+					.sort(function (a, b) {
+						var pa = PINNED.indexOf(a.name), pb = PINNED.indexOf(b.name);
+						if (pa !== pb) return (pa < 0 ? 1e9 : pa) - (pb < 0 ? 1e9 : pb);
+						return new Date(b.pushed_at) - new Date(a.pushed_at);
+					});
+				if (!repos.length) { grid.innerHTML = '<p class="repo-status">No public repositories yet. <a href="https://github.com/' + USER + '" target="_blank" rel="noopener noreferrer">See my GitHub profile</a>.</p>'; return; }
+				drawChips(); drawGrid();
+			})
+			.catch(function () { grid.innerHTML = '<p class="repo-status">The list couldn\'t load right now. <a href="https://github.com/' + USER + '" target="_blank" rel="noopener noreferrer">See my repositories on GitHub</a>.</p>'; });
+	})();
+	</script>
+
+	<footer class="footer">
+		<span>© <span id="year">2026</span> Florence Wong</span>
+		<span>Berlin</span>
+	</footer>
+
+	<script src="../../assets/js/home.js?v=20261110h" defer></script>
+</body>
+</html>
