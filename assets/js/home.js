@@ -49,25 +49,41 @@
 		update();
 	})();
 
-	/* ---------- 3. Scroll reveal ---------- */
-	if ("IntersectionObserver" in window && !reduceMotion) {
-		var io = new IntersectionObserver(function (entries) {
-			entries.forEach(function (en) {
-				if (en.isIntersecting) { en.target.classList.add("in"); }   // replays each time it scrolls into view
-				else { en.target.classList.remove("in"); en.target.classList.toggle("above", en.boundingClientRect.top < 0); }
-			});
-		}, { rootMargin: "0px 0px -6% 0px" });
+	/* ---------- 3. Scroll reveal ----------
+	   Opacity and position follow the scroll position directly (no timed transitions), so the
+	   motion is exactly as smooth as the scrolling. CSS scroll-driven animations do it where
+	   supported; elsewhere this sets the same values once per frame while scrolling. */
+	(function () {
+		if (reduceMotion) return;
+		var els = [];
 		var groups = document.querySelectorAll(".section-head, .focus, .rows, .feature, .photo, .contact, .grid-cards, .figure, .prose, .photo-full");
 		Array.prototype.forEach.call(groups, function (g) {
 			var kids = g.matches(".focus, .rows, .feature, .grid-cards") ? g.children : [g];
-			Array.prototype.forEach.call(kids, function (el, i) {
-				el.classList.add("reveal");
-				el.style.transitionDelay = Math.min(i, 4) * 40 + "ms";
-				io.observe(el);
-			});
+			Array.prototype.forEach.call(kids, function (el) { el.classList.add("reveal"); els.push(el); });
 		});
-	}
-
+		if (window.CSS && CSS.supports && CSS.supports("animation-timeline: view()")) return;
+		function smooth(v) { return v * v * (3 - 2 * v); }
+		var pending = false, rects = [];
+		function update() {
+			pending = false;
+			var vh = window.innerHeight, i;
+			for (i = 0; i < els.length; i++) rects[i] = els[i].getBoundingClientRect();   // read everything first
+			for (i = 0; i < els.length; i++) {                                         // then write
+				var r = rects[i];
+				if (r.bottom < -50 || r.top > vh + 50) continue;
+				var d = Math.min(Math.max(r.height, 140), vh * 0.45);
+				var pin = Math.max(0, Math.min(1, (vh - r.top) / d));
+				var pout = Math.max(0, Math.min(1, r.bottom / d));
+				var v = smooth(Math.min(pin, pout));
+				var ty = (1 - v) * (pin <= pout ? 32 : -32), sc = 0.985 + 0.015 * v;
+				els[i].style.opacity = v.toFixed(3);
+				els[i].style.transform = v > 0.999 ? "none" : "translate3d(0," + ty.toFixed(1) + "px,0) scale(" + sc.toFixed(4) + ")";
+			}
+		}
+		window.addEventListener("scroll", function () { if (!pending) { pending = true; requestAnimationFrame(update); } }, { passive: true });
+		window.addEventListener("resize", update);
+		update();
+	})();
 
 	/* ---------- 2. Rocket engine ----------
 	   Wireframe of a generic liquid-propellant thrust chamber: gimbal bearing, injector with
