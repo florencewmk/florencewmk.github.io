@@ -50,59 +50,37 @@
 	})();
 
 	/* ---------- 3. Scroll reveal ----------
-	   Opacity and position follow the scroll position directly (no timed transitions), so the
-	   motion is exactly as smooth as the scrolling. CSS scroll-driven animations do it where
-	   supported; elsewhere this sets the same values once per frame while scrolling. */
+	   Items fade and rise in when they come into view (from below when scrolling down, from
+	   above when scrolling back up). While an item is fully off screen it is reset with
+	   transitions switched off, so nothing ever animates or jumps where you can see it. */
 	(function () {
-		if (reduceMotion) return;
-		var els = [];
+		if (reduceMotion || !("IntersectionObserver" in window)) return;
+		// show: once an item is a little way into the screen
+		var show = new IntersectionObserver(function (entries) {
+			entries.forEach(function (en) {
+				if (en.isIntersecting) { en.target.classList.remove("reset"); en.target.classList.add("in"); }
+			});
+		}, { rootMargin: "0px 0px -10% 0px" });
+		// reset: only when it is completely off screen
+		var hide = new IntersectionObserver(function (entries) {
+			entries.forEach(function (en) {
+				if (en.isIntersecting) return;
+				var el = en.target;
+				el.classList.add("reset");
+				el.classList.remove("in");
+				el.classList.toggle("above", en.boundingClientRect.top < 0);
+			});
+		});
+		var io = { observe: function (el) { show.observe(el); hide.observe(el); } };
 		var groups = document.querySelectorAll(".section-head, .focus, .rows, .feature, .photo, .contact, .grid-cards, .figure, .prose, .photo-full");
 		Array.prototype.forEach.call(groups, function (g) {
 			var kids = g.matches(".focus, .rows, .feature, .grid-cards") ? g.children : [g];
-			Array.prototype.forEach.call(kids, function (el) { el.classList.add("reveal"); els.push(el); });
-		});
-		// Items the page can never scroll far enough to fully reveal (near the end of a short page)
-		// fade in once instead; items already at the very top on load just stay visible.
-		var late = [];
-		var io = "IntersectionObserver" in window ? new IntersectionObserver(function (en) {
-			en.forEach(function (e) { if (e.isIntersecting) e.target.classList.add("in"); });
-		}) : null;
-		function classify() {
-			var vh = window.innerHeight, maxScroll = document.documentElement.scrollHeight - vh, y = window.scrollY;
-			late = [];
-			els.forEach(function (el) {
-				var r = el.getBoundingClientRect(), top = r.top + y, bottom = r.bottom + y;
-				var isLate = top - maxScroll > vh * 0.68, isEarly = !isLate && bottom < vh * 0.3;
-				el.classList.toggle("reveal-late", isLate);
-				el.classList.toggle("reveal-static", isEarly);
-				if (isLate) { late.push(el); if (io) io.observe(el); else el.classList.add("in"); }
+			Array.prototype.forEach.call(kids, function (el, i) {
+				el.classList.add("reveal");
+				el.style.transitionDelay = Math.min(i, 5) * 60 + "ms";
+				io.observe(el);
 			});
-		}
-		classify();
-		window.addEventListener("load", classify);
-		window.addEventListener("resize", classify);
-		if (window.CSS && CSS.supports && CSS.supports("animation-timeline: view()")) return;
-		function smooth(v) { return v * v * (3 - 2 * v); }
-		var pending = false, rects = [];
-		function update() {
-			pending = false;
-			var vh = window.innerHeight, i;
-			for (i = 0; i < els.length; i++) rects[i] = els[i].getBoundingClientRect();   // read everything first
-			for (i = 0; i < els.length; i++) {                                         // then write
-				var r = rects[i];
-				if (r.bottom < -50 || r.top > vh + 50 || els[i].classList.contains("reveal-late") || els[i].classList.contains("reveal-static")) continue;
-				var pin = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.30)));     // bottom 30 % of the screen
-				var pout = Math.max(0, Math.min(1, r.bottom / (vh * 0.22)));        // top 22 %
-				var v, ty, sc;
-				if (pin < 1) { v = 1 - Math.pow(1 - pin, 3); ty = (1 - v) * 90; sc = 0.92 + 0.08 * v; }
-				else { v = 1 - Math.pow(1 - pout, 2); ty = -(1 - v) * 60; sc = 0.95 + 0.05 * v; }
-				els[i].style.opacity = v.toFixed(3);
-				els[i].style.transform = v > 0.999 ? "none" : "translate3d(0," + ty.toFixed(1) + "px,0) scale(" + sc.toFixed(4) + ")";
-			}
-		}
-		window.addEventListener("scroll", function () { if (!pending) { pending = true; requestAnimationFrame(update); } }, { passive: true });
-		window.addEventListener("resize", update);
-		update();
+		});
 	})();
 
 	/* ---------- 2. Rocket engine ----------
