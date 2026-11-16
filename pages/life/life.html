@@ -4,35 +4,63 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>About me, Florence Wong</title>
-	<meta name="description" content="Photos by Florence Wong." />
+	<meta name="description" content="Florence Wong grew up in Kuala Lumpur and studies mechanical engineering in Berlin. About the sky, diving and everything outside the lecture hall." />
 	<meta name="theme-color" content="#000000" />
 	<meta name="color-scheme" content="dark" />
-	<link rel="stylesheet" href="../../assets/css/home.css?v=20261110j" />
+	<link rel="stylesheet" href="../../assets/css/home.css?v=20261116a" />
 </head>
-<body class="page">
+<body class="page page-about">
 	<a class="skip" href="#main">Skip to content</a>
 
 	<header class="nav-wrap">
 		<nav class="nav glass shine" aria-label="Main">
-			<a class="brand-link" href="../../index.html" aria-label="Florence Wong, home"><span class="brand">FW</span><span class="brand-name">Florence Wong</span></a>
 			<ul>
 				<li><a href="../../pages/projects/projects.html">Projects</a></li>
 				<li><a href="../../pages/repositories/repositories.html"><span class="nav-long">Repositories</span><span class="nav-short">Repos</span></a></li>
 				<li><a href="../../pages/life/life.html" class="is-active" aria-current="page">About</a></li>
 				<li><a href="../../pages/cv/cv.html">CV</a></li>
+				<li><a href="../../pages/contact/contact.html">Get in touch</a></li>
 			</ul>
-			<a class="nav-cta" href="../../index.html#contact">Get in touch</a>
 		</nav>
 	</header>
 
 	<main id="main">
-		<header class="page-head" data-tone="#9fe3cf">
+		<section class="about-hero" aria-labelledby="about-title">
+			<canvas class="blackhole" aria-hidden="true"></canvas>
+			<div class="about-hero-inner">
+				<h1 id="about-title">About me</h1>
+				<p class="lede">Born and raised in Kuala Lumpur, Malaysia. Now an international student in Germany, and still looking up.</p>
+			</div>
+		</section>
 
-			<h1>About me</h1>
-			<p class="lede">Photos I've taken outside of work.</p>
-		</header>
+		<section class="section story" aria-labelledby="story-1">
+			<header class="section-head"><h2 id="story-1">It started with the sky</h2></header>
+			<div class="prose">
+				<p>For as long as I can remember I have been curious about the world, and even more about everything beyond it. At home in Kuala Lumpur my dad watched National Geographic all the time, so I grew up with the planet and the universe playing in our living room.</p>
+				<p>Then, in high school, I met a physics teacher who changed everything. Whatever I asked him, he had an answer. And when he didn't, he went and found one for me. That is what drove me into STEM for good.</p>
+			</div>
+		</section>
 
-		<section class="section" data-tone="#9fe3cf">
+		<section class="section story" aria-labelledby="story-2">
+			<header class="section-head"><h2 id="story-2">The dream and the decision</h2></header>
+			<div class="prose">
+				<p>I have always loved watching the sky. I wanted to know what is happening out there, far away from Earth, and for years my dream was to study astrophysics.</p>
+				<p>When the time came to choose, I chose engineering. I wanted to solve problems that people have here and now, in the real world. The stars did not go anywhere. I just look at them after work.</p>
+			</div>
+		</section>
+
+		<section class="section story" aria-labelledby="story-3">
+			<header class="section-head"><h2 id="story-3">When I'm not studying</h2></header>
+			<div class="grid-cards">
+				<article class="card glass shine"><h3>Photographing the night sky</h3><p>I take astronomy photos: the Milky Way, the constellations and whatever else the sky shows me on a clear night.</p></article>
+				<article class="card glass shine"><h3>Diving</h3><p>I'm a PADI Rescue Diver. The sea is the other place I go to see a world that isn't ours.</p></article>
+				<article class="card glass shine"><h3>Baking, cooking and moving</h3><p>I bake, I cook and I swim regularly. I also only just learnt how to ride a bicycle.</p></article>
+				<article class="card glass shine"><h3>Languages</h3><p>Malaysia is a country of many cultures, so I grew up between languages. Today I speak English, Malay, Cantonese, Mandarin and German, and a little French.</p></article>
+			</div>
+		</section>
+
+		<section class="section" aria-labelledby="photos-title">
+			<header class="section-head"><h2 id="photos-title">From my camera</h2></header>
 			<a class="photo shine" href="iceland-2017.html">
 				<img src="../../images/life-2017-iceland/FLO_2676w.jpg" alt="Northern lights over a snowy landscape in Iceland" loading="lazy" />
 				<span class="photo-cap glass">
@@ -41,14 +69,13 @@
 				</span>
 			</a>
 		</section>
-
 	</main>
 
 	<footer class="footer">
-		<span>© <span id="year">2026</span> Florence Wong</span>
+		<a class="home-link" href="../../index.html">&copy; <span id="year">2026</span> Florence Wong</a>
 		<span>Berlin</span>
 	</footer>
 
-	<script src="../../assets/js/home.js?v=20261110j" defer></script>
+	<script src="../../assets/js/home.js?v=20261116a" defer></script>
 </body>
 </html>

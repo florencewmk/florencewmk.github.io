@@ -5,7 +5,8 @@
       on touch screens) separates its assemblies again. The flame throttles up while the
       cursor moves.
    3. Scroll reveal
-   4. Section tone (FW mark colour follows the section in view)
+   4. Nav: a short spring when a link is pressed
+   5. About page: a spinning black hole with an accretion disk
    No dependencies. */
 (function () {
 	"use strict";
@@ -27,27 +28,20 @@
 		if (shineTarget && !shinePending) { shinePending = true; requestAnimationFrame(applyShine); }
 	}, { passive: true });
 
-	/* ---------- 4. Section tone: the FW mark changes colour with the section in view,
-	              and the matching nav link is marked active ---------- */
-	(function () {
-		var root = document.documentElement;
-		var secs = Array.prototype.slice.call(document.querySelectorAll("[data-tone]"));
-		if (!secs.length) return;
-		var links = Array.prototype.slice.call(document.querySelectorAll(".nav a[href^='#']"));
-		var current = null, pending = false;
-		function update() {
-			pending = false;
-			var mid = window.innerHeight * 0.45, pick = secs[0];
-			for (var i = 0; i < secs.length; i++) { if (secs[i].getBoundingClientRect().top <= mid) pick = secs[i]; }
-			if (pick === current) return;
-			current = pick;
-			root.style.setProperty("--fw", pick.getAttribute("data-tone"));
-			links.forEach(function (a) { a.classList.toggle("is-active", !!pick.id && a.getAttribute("href") === "#" + pick.id); });
-		}
-		window.addEventListener("scroll", function () { if (!pending) { pending = true; requestAnimationFrame(update); } }, { passive: true });
-		window.addEventListener("resize", update);
-		update();
-	})();
+	/* ---------- 4. Nav: links spring back when pressed ----------
+	   The press itself is CSS (:active). On a plain click the link plays the spring first and
+	   the page changes a moment later, so the reaction is visible. */
+	Array.prototype.forEach.call(document.querySelectorAll(".nav li a"), function (a) {
+		a.addEventListener("click", function (e) {
+			if (reduceMotion || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === "_blank") return;
+			e.preventDefault();
+			a.classList.remove("spring"); void a.offsetWidth; a.classList.add("spring");
+			setTimeout(function () { window.location.href = a.href; }, 230);
+		});
+	});
+	window.addEventListener("pageshow", function () {
+		Array.prototype.forEach.call(document.querySelectorAll(".nav li a.spring"), function (a) { a.classList.remove("spring"); });
+	});
 
 	/* ---------- 3. Scroll reveal ----------
 	   Items fade and rise in when they come into view (from below when scrolling down, from
@@ -72,15 +66,131 @@
 			});
 		});
 		var io = { observe: function (el) { show.observe(el); hide.observe(el); } };
-		var groups = document.querySelectorAll(".section-head, .focus, .rows, .feature, .photo, .contact, .grid-cards, .figure, .prose, .photo-full");
+		var groups = document.querySelectorAll(".section-head, .focus, .rows, .feature, .photo, .grid-cards, .figure, .prose, .photo-full, .grade-note, .contact-form, .contact-side, .posts-block");
 		Array.prototype.forEach.call(groups, function (g) {
-			var kids = g.matches(".focus, .rows, .feature, .grid-cards") ? g.children : [g];
+			var kids = g.matches(".focus, .rows, .feature, .grid-cards, .contact-side") ? g.children : [g];
 			Array.prototype.forEach.call(kids, function (el, i) {
 				el.classList.add("reveal");
 				el.style.transitionDelay = Math.min(i, 5) * 60 + "ms";
 				io.observe(el);
 			});
 		});
+	})();
+
+	/* ---------- 5. About page: black hole ----------
+	   A few thousand short streaks orbit a black disc, faster towards the centre. The far side
+	   of the disk is drawn again as a ring around the shadow, the way gravity bends its light
+	   over the top and under the bottom. The side turning towards the viewer is brighter.
+	   Moving the cursor tips the disk slightly. */
+	(function () {
+		var c = document.querySelector(".blackhole");
+		if (!c || !c.getContext) return;
+		var host = c.parentNode, x = c.getContext("2d");
+		var W = 0, H = 0, D = 1, cx = 0, cy = 0, R = 40, parts = [], starsImg = null, glowImg = null, diskImg = null;
+		var tilt = 0.24, tiltTo = 0.24, roll = -0.3, rollTo = -0.3, raf = 0, last = 0, vis = true;
+		var HEAT = 5, LUM = 3, paths = [];
+		var COL = ["88,72,190", "132,110,232", "176,158,248", "214,204,255", "250,246,255"];
+		var R_IN = 1.62, R_OUT = 5.0;
+		function setup() {
+			var r = host.getBoundingClientRect();
+			W = r.width; H = r.height; D = Math.min(window.devicePixelRatio || 1, 1.5);
+			c.width = Math.round(W * D); c.height = Math.round(H * D);
+			var small = W < 760;
+			cx = small ? W * 0.5 : W * 0.7; cy = small ? H * 0.34 : H * 0.5;
+			R = small ? Math.min(W * 0.085, H * 0.07) : Math.min(W * 0.058, H * 0.1);
+			var n = small ? 2400 : 4200; parts = [];
+			for (var i = 0; i < n; i++) {
+				var u = Math.random(), rr = R_IN + Math.pow(u, 1.7) * (R_OUT - R_IN);
+				parts.push({ r: rr, a: Math.random() * 6.2832, w: 1.5 / Math.pow(rr, 1.5), h: (Math.random() - 0.5) * 0.05 * rr, b: 0.35 + Math.random() * 0.65 });
+			}
+			// background stars, drawn once
+			starsImg = document.createElement("canvas"); starsImg.width = c.width; starsImg.height = c.height;
+			var sx = starsImg.getContext("2d"), m = Math.round(W * H / 3200);
+			for (var k = 0; k < m; k++) {
+				var px = Math.random() * c.width, py = Math.random() * c.height, d = Math.hypot(px - cx * D, py - cy * D) / (R * D);
+				if (d < 2.2) continue;                                  // no stars inside the lensed region
+				sx.fillStyle = "rgba(235,236,255," + (0.12 + Math.random() * 0.55).toFixed(2) + ")";
+				var sz = Math.random() < 0.08 ? 1.6 * D : 0.9 * D; sx.fillRect(px, py, sz, sz);
+			}
+			glowImg = document.createElement("canvas"); glowImg.width = glowImg.height = 256;
+			var gx = glowImg.getContext("2d"), g = gx.createRadialGradient(128, 128, 0, 128, 128, 128);
+			g.addColorStop(0, "rgba(190,170,255,.34)"); g.addColorStop(0.3, "rgba(150,130,245,.16)"); g.addColorStop(0.65, "rgba(110,96,220,.05)"); g.addColorStop(1, "rgba(110,96,220,0)");
+			gx.fillStyle = g; gx.fillRect(0, 0, 256, 256);
+			// soft glowing disk under the streaks: dark inside the inner edge, brightest just outside it
+			diskImg = document.createElement("canvas"); diskImg.width = diskImg.height = 512;
+			var dx = diskImg.getContext("2d"), dg = dx.createRadialGradient(256, 256, 0, 256, 256, 256), f0 = R_IN / R_OUT;
+			dg.addColorStop(0, "rgba(0,0,0,0)"); dg.addColorStop(f0 * 0.97, "rgba(0,0,0,0)"); dg.addColorStop(f0 * 1.04, "rgba(236,228,255,.5)");
+			dg.addColorStop(0.46, "rgba(178,160,250,.26)"); dg.addColorStop(0.7, "rgba(126,106,228,.1)"); dg.addColorStop(1, "rgba(110,96,220,0)");
+			dx.fillStyle = dg; dx.fillRect(0, 0, 512, 512);
+			frame(0);
+		}
+		function stroke(set, width) {
+			x.lineWidth = width;
+			for (var q = 0; q < HEAT * LUM; q++) {
+				var p = set[q]; if (!p || !p.length) continue;
+				x.strokeStyle = "rgba(" + COL[(q / LUM) | 0] + "," + (0.22 + 0.36 * (q % LUM)).toFixed(2) + ")";
+				x.beginPath();
+				for (var m = 0; m < p.length; m += 4) { x.moveTo(p[m], p[m + 1]); x.lineTo(p[m + 2], p[m + 3]); }
+				x.stroke();
+			}
+		}
+		function frame(dt) {
+			tilt += (tiltTo - tilt) * 0.05; roll += (rollTo - roll) * 0.05;
+			x.setTransform(D, 0, 0, D, 0, 0);
+			x.globalCompositeOperation = "source-over";
+			x.fillStyle = "#000"; x.fillRect(0, 0, W, H);
+			if (starsImg) x.drawImage(starsImg, 0, 0, W, H);
+			x.translate(cx, cy); x.rotate(roll);
+			x.globalCompositeOperation = "lighter";
+			var gs = R * 13; x.drawImage(glowImg, -gs / 2, -gs / 2 * 0.62, gs, gs * 0.62);
+			var back = [], front = [], halo = [];
+			for (var i = 0; i < parts.length; i++) {
+				var p = parts[i];
+				p.a += p.w * dt; if (p.a > 6.2832) p.a -= 6.2832;
+				var ca = Math.cos(p.a), sa = Math.sin(p.a), tr = p.a - Math.min(0.5, p.w * 0.22), ct = Math.cos(tr), st = Math.sin(tr);
+				var heat = 1 - (p.r - R_IN) / (R_OUT - R_IN);
+				var dop = 0.5 + 0.5 * -ca;                              // left side turns towards the viewer
+				var lum = p.b * (0.3 + 0.7 * heat) * (0.35 + 0.95 * dop);
+				var q = Math.min(HEAT - 1, (heat * heat * HEAT) | 0) * LUM + Math.min(LUM - 1, (lum * LUM) | 0);
+				var set = sa < 0 ? back : front;
+				(set[q] || (set[q] = [])).push(ct * p.r * R, st * p.r * R * tilt + p.h * R, ca * p.r * R, sa * p.r * R * tilt + p.h * R);
+				// lensed image of the disk: a ring hugging the shadow, thicker over the top
+				if (i % 2 === 0) {
+					var rho = (1.5 + (p.r - R_IN) * (sa < 0 ? 0.34 : 0.13)) * R, hq = Math.min(HEAT - 1, ((heat * 0.6 + 0.4) * HEAT) | 0) * LUM + Math.min(LUM - 1, (lum * 0.8 * LUM) | 0);
+					(halo[hq] || (halo[hq] = [])).push(ct * rho, st * rho * 0.96, ca * rho, sa * rho * 0.96);
+				}
+			}
+			x.lineCap = "round";
+			var dr = R_OUT * R; x.save(); x.beginPath(); x.rect(-dr, -dr, dr * 2, dr); x.clip(); x.drawImage(diskImg, -dr, -dr * tilt, dr * 2, dr * 2 * tilt); x.restore();
+			stroke(back, 1.2);
+			stroke(halo, 1.1);
+			x.globalCompositeOperation = "source-over";
+			x.fillStyle = "#000"; x.beginPath(); x.arc(0, 0, R * 1.46, 0, 6.2832); x.fill();
+			x.globalCompositeOperation = "lighter";
+			x.strokeStyle = "rgba(236,228,255,.85)"; x.lineWidth = Math.max(1, R * 0.035);
+			x.beginPath(); x.arc(0, 0, R * 1.48, 0, 6.2832); x.stroke();     // photon ring
+			x.strokeStyle = "rgba(170,150,255,.28)"; x.lineWidth = R * 0.16;
+			x.beginPath(); x.arc(0, 0, R * 1.56, 0, 6.2832); x.stroke();
+			x.save(); x.beginPath(); x.rect(-dr, 0, dr * 2, dr); x.clip(); x.drawImage(diskImg, -dr, -dr * tilt, dr * 2, dr * 2 * tilt); x.restore();
+			stroke(front, 1.3);
+			x.globalCompositeOperation = "source-over";
+		}
+		function tick(t) {
+			raf = 0; if (!vis || document.hidden) return;
+			var dt = Math.min(0.05, last ? (t - last) / 1000 : 0.016); last = t;
+			frame(dt); raf = requestAnimationFrame(tick);
+		}
+		function go() { if (vis && !raf && !reduceMotion) { last = 0; raf = requestAnimationFrame(tick); } }
+		host.addEventListener("pointermove", function (e) {
+			var r = host.getBoundingClientRect();
+			tiltTo = 0.14 + 0.24 * Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+			rollTo = -0.3 + 0.22 * ((e.clientX - r.left) / r.width - 0.5);
+		}, { passive: true });
+		host.addEventListener("pointerleave", function () { tiltTo = 0.24; rollTo = -0.3; });
+		var rs; window.addEventListener("resize", function () { clearTimeout(rs); rs = setTimeout(setup, 150); });
+		if ("IntersectionObserver" in window) new IntersectionObserver(function (en) { vis = en[0].isIntersecting; go(); }).observe(host);
+		document.addEventListener("visibilitychange", go);
+		setup(); go();
 	})();
 
 	/* ---------- 2. Rocket engine ----------
@@ -103,8 +213,11 @@
 	var PIVOT_Y = -0.15;                                // gimbal bearing on top of the dome
 
 	var segs = []; // [x1,y1,z1, x2,y2,z2, weight, part]
-	var curPart = 2;
-	function seg(a, b, w) { segs.push([a[0], a[1], a[2], b[0], b[1], b[2], w || 1, curPart]); }
+	var curPart = 2, Y_SPLIT = 1e9;                     // below Y_SPLIT the bell is a separate nozzle extension (part 3)
+	function seg(a, b, w) {
+		var part = curPart === 2 && (a[1] + b[1]) / 2 > Y_SPLIT + 1e-6 ? 3 : curPart;
+		segs.push([a[0], a[1], a[2], b[0], b[1], b[2], w || 1, part]);
+	}
 	function ring(r, y, n, w, ox, oz) {
 		ox = ox || 0; oz = oz || 0;
 		for (var i = 0; i < n; i++) {
@@ -142,9 +255,10 @@
 			prof.push([u * u * Y_T + 2 * u * s * yq + s * s * Y_E, u * u * RT + 2 * u * s * rq + s * s * RE]);
 		}
 
-		curPart = 2;                                         // thrust chamber + nozzle (one piece)
+		curPart = 2;                                         // thrust chamber with throat; the lower bell bolts on as a nozzle extension
+		var split = prof[16]; Y_SPLIT = split[0];
 		prof.forEach(function (p, k) {
-			var edge = k === 0 || k === prof.length - 1 || Math.abs(p[0] - Y_T) < 1e-6;
+			var edge = k === 0 || k === prof.length - 1 || Math.abs(p[0] - Y_T) < 1e-6 || k === 16;
 			ring(p[1], p[0], 72, edge ? 1.15 : 0.45);
 		});
 		var M = 48;                                          // regenerative-cooling tubes
@@ -157,6 +271,9 @@
 		}
 		// forward manifold under the injector
 		ring(RC + 0.03, 0.04, 60, 0.9); ring(RC + 0.03, 0.09, 60, 0.5);
+		// bolted joint between chamber and nozzle extension: one flange on each part
+		ring(split[1] + 0.014, Y_SPLIT, 72, 1.1);
+		curPart = 3; ring(split[1], Y_SPLIT + 0.004, 72, 1.15); ring(split[1] + 0.014, Y_SPLIT + 0.004, 72, 1.1);
 
 		curPart = 1;                                         // injector: face flange + LOX dome
 		ring(RC + 0.04, 0, 60, 1.1); ring(RC + 0.04, -0.02, 60, 0.7);
@@ -176,9 +293,10 @@
 
 	// exploded view: separate the real assemblies (no labels)
 	var OFF = [
-		[0, -0.42, 0],     // 0 gimbal bearing
-		[0, -0.24, 0],     // 1 injector + dome
-		[0, 0.1, 0]        // 2 thrust chamber + nozzle
+		[0, -0.5, 0],      // 0 gimbal bearing
+		[0, -0.3, 0],      // 1 injector + dome
+		[0, -0.06, 0],     // 2 thrust chamber with throat
+		[0, 0.3, 0]        // 3 nozzle extension
 	];
 
 	// --- state
@@ -299,7 +417,7 @@
 	function setPart(i) { var o = OFF[i], k = ee * (mobile ? 0.6 : 1); ox = o[0] * k; oy = o[1] * k; oz = o[2] * k; }
 	function prep() {
 		ee = ease(Math.max(0, Math.min(1, explode)));
-		sc = scale * (1 - (mobile ? 0.1 : 0.18) * ee);
+		sc = scale * (1 - (mobile ? 0.14 : 0.24) * ee);
 		tp = top + ee * (mobile ? 0.2 : 0.4) * scale;
 		cs = Math.cos(spin); ss = Math.sin(spin);
 		cg = Math.cos(gx); sg = Math.sin(gx);
@@ -427,7 +545,7 @@
 		ctx.clearRect(BX, 0, BW, H);
 
 		// nozzle exit and plume direction on screen
-		setPart(2);
+		setPart(3);
 		project(0, Y_E, 0, ea, 0);
 		project(0, Y_E + 1, 0, eb, 0);
 		var dl = Math.hypot(eb[0] - ea[0], eb[1] - ea[1]) || 1;
@@ -447,6 +565,16 @@
 			ctx.lineTo(ea[0] + ux * plumeLen - uy * exitR * 1.6, ea[1] + uy * plumeLen + ux * exitR * 1.6);
 			ctx.closePath(); ctx.fill();
 			ctx.globalCompositeOperation = "source-over";
+		}
+
+		/* exploded view: dashed assembly axis through all parts, as on an exploded drawing */
+		if (ee > 0.03) {
+			var ax = [0, 0, 0, 0, 0, 0];
+			setPart(0); project(0, PIVOT_Y - 0.16, 0, ax, 0);
+			setPart(3); project(0, Y_E + 0.14, 0, ax, 3);
+			ctx.save(); ctx.setLineDash([10, 5, 2, 5]); ctx.lineWidth = 1;
+			ctx.strokeStyle = "rgba(" + wireRGB + "," + (0.5 * ee).toFixed(3) + ")";
+			ctx.beginPath(); ctx.moveTo(ax[0], ax[1]); ctx.lineTo(ax[3], ax[4]); ctx.stroke(); ctx.restore();
 		}
 
 		/* wireframe */
@@ -509,7 +637,7 @@
 		lastMove = performance.now();
 		if (e.pointerType === "mouse") {
 			var wHalf = scale * (explode > 0.5 ? 1.0 : 0.65);
-			var y0 = top + (explode > 0.5 ? -0.6 : -0.3) * scale, y1 = top + (explode > 0.5 ? 2.2 : 1.85) * scale;
+			var y0 = top + (explode > 0.5 ? -0.6 : -0.3) * scale, y1 = top + (explode > 0.5 ? 2.5 : 1.85) * scale;
 			hoverEngine = Math.abs(px - cx) < wHalf && py > y0 && py < y1 && !(e.target.closest && e.target.closest("a, button"));
 		}
 	}, { passive: true });
