@@ -652,3 +652,23 @@ ol { list-style: none; margin: 0; padding: 0; }
 
 /* About: the black hole is rendered in WebGL on its own canvas above the star canvas */
 .blackhole-gl { position: absolute; z-index: 0; contain: strict; pointer-events: none; }
+
+.blackhole-glow { position: absolute; z-index: 0; pointer-events: none; filter: blur(20px) brightness(1.15); mix-blend-mode: screen; opacity: .6; }
+
+/* homepage name: large, not shouting */
+.hero h1 { font-size: clamp(44px, 6.2vw, 92px); letter-spacing: -0.04em; line-height: .98; margin: 18px 0 22px; }
+.hero .lede { max-width: 500px; }
+
+/* nav: Home link */
+.nav-home svg { display: none; }
+@media (max-width: 760px) {
+	.nav-home span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+	.nav-home svg { display: block; width: 17px; height: 17px; }
+	.nav li a { padding: 8px 9px; }
+	.nav li a.nav-home { padding: 7px 8px; }
+}
+@media (max-width: 380px) { .nav li a { padding: 8px 6px; } .nav li a.nav-home { padding: 7px 6px; } }
+
+/* solid button: quiet until hovered or pressed */
+.btn-solid { box-shadow: none; text-shadow: none; background: rgba(var(--glass-purple), .2); border-color: rgba(214, 200, 255, .4); }
+.btn-solid:hover, .btn-solid:focus-visible { background: rgba(var(--glass-purple), .34); border-color: rgba(214, 200, 255, .65); box-shadow: 0 0 34px -8px rgba(var(--glass-purple), 1); }

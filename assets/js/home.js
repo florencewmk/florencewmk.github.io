@@ -91,23 +91,26 @@
 		if (!c || !c.getContext) return;
 		var host = c.parentNode, x = c.getContext("2d");
 		var W = 0, H = 0, cx = 0, cy = 0, shadow = 80, time = 0, raf = 0, last = 0, vis = true;
-		var incl = 0.2, inclTo = 0.2, roll = -0.22, rollTo = -0.22;
-		var F = 3, DIST = 22, R_OUT = 9;
+		var incl = 0.06, inclTo = 0.06, roll = -0.1, rollTo = -0.1;
+		var F = 3, DIST = 22, R_OUT = 12;
 		var glc = document.createElement("canvas"), gl = null, prog = null, U = {}, GD = 1, pxScale = 1;
 		glc.className = "blackhole-gl"; glc.setAttribute("aria-hidden", "true");
+		// soft bloom: a small blurred copy of the render, added on top of the stars
+		var glow = document.createElement("canvas"), gctx = glow.getContext("2d"), frames = 0;
+		glow.className = "blackhole-glow"; glow.setAttribute("aria-hidden", "true");
 		try { gl = glc.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: false }); } catch (e) { gl = null; }
 		if (gl) {
 			var vs = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
 			var fs = [
 				"precision highp float;",
 				"uniform vec2 uRes;uniform float uTime;uniform float uScale;uniform float uIncl;uniform float uRoll;",
-				"const float RIN=2.6;const float ROUT=9.0;const float DIST=22.0;const float FOC=3.0;",
+				"const float RIN=1.9;const float ROUT=12.0;const float DIST=22.0;const float FOC=3.0;",
 				"float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
 				"float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);}",
 				"float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*noise(p);p=p*2.07+vec2(3.1,7.7);a*=.5;}return v;}",
 				// gas pattern sheared by differential rotation (inner orbits are faster)
 				"float gas(vec3 c,float r,float ph){float a=atan(c.z,c.x)+ph*2.4*pow(r,-1.5);vec2 q=vec2(cos(a),sin(a))*r;return fbm(q*1.25+ph*0.013);}",
-				"vec3 heat(float t){vec3 c=mix(vec3(.75,.13,.02),vec3(1.,.42,.1),smoothstep(.15,.5,t));c=mix(c,vec3(1.,.78,.5),smoothstep(.45,.85,t));return mix(c,vec3(.95,.96,1.),smoothstep(.85,1.35,t));}",
+				"vec3 heat(float t){vec3 c=mix(vec3(.62,.2,.04),vec3(1.,.5,.14),smoothstep(.2,.5,t));c=mix(c,vec3(1.,.8,.5),smoothstep(.45,.75,t));return mix(c,vec3(1.,.95,.86),smoothstep(.72,1.,t));}",
 				"void main(){",
 				"  vec2 uv=(gl_FragCoord.xy-uRes*.5)/uScale;",
 				"  float cr=cos(uRoll),sr=sin(uRoll);uv=vec2(uv.x*cr-uv.y*sr,uv.x*sr+uv.y*cr);",
@@ -128,13 +131,13 @@
 				"      vec3 c=mix(p,np,p.y/(p.y-np.y));float r=length(c.xz);",
 				"      if(r>RIN&&r<ROUT){",
 				"        float n=w1*gas(c,r,18.+f1*P)+(1.-w1)*gas(c,r,18.+f2*P+7.);",
-				"        float band=noise(vec2(r*2.2,1.7))*.65+noise(vec2(r*6.,5.))*.35;",
-				"        float dens=(.55+.45*band)*(.4+1.25*n);",
+				"        float band=noise(vec2(r*1.6,1.7))*.6+noise(vec2(r*5.,5.))*.4;",
+				"        float dens=(.72+.28*band)*(.62+.76*n);",
 				"        float beta=sqrt(.5/r),cs=dot(vec3(c.z,0.,-c.x)/r,-normalize(v));",
-				"        float g=sqrt(1.-beta*beta)/(1.-beta*cs)*sqrt(1.-1./r);",    // Doppler and gravitational shift
-				"        float tn=pow(RIN/r,.75)*g*1.05;",
-				"        float a=clamp(dens*1.3,0.,1.)*smoothstep(RIN,RIN+.5,r)*(1.-smoothstep(ROUT-4.,ROUT,r));",
-				"        col+=trans*heat(tn)*pow(g,2.2)*pow(RIN/r,1.9)*dens*5.5*a;",
+				"        float g=mix(1.,sqrt(1.-beta*beta)/(1.-beta*cs),.12);",      // Doppler beaming almost switched off, as in the film
+				"        float tn=pow(min(1.,3./r),.6)*g*.92;",
+				"        float a=clamp(dens*1.3,0.,1.)*smoothstep(RIN,RIN+.35,r)*(1.-smoothstep(ROUT-7.,ROUT-.5,r));",
+				"        col+=trans*heat(tn)*pow(g,2.)*pow(min(1.,3./r),1.5)*dens*3.6*a;",
 				"        trans*=1.-a*.85;",
 				"      }",
 				"    }",
@@ -158,7 +161,7 @@
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
 			var ap = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
 			["uRes", "uTime", "uScale", "uIncl", "uRoll"].forEach(function (k) { U[k] = gl.getUniformLocation(prog, k); });
-			host.insertBefore(glc, c.nextSibling);
+			host.insertBefore(glc, c.nextSibling); host.insertBefore(glow, glc);
 		}
 		function setup() {
 			var r = host.getBoundingClientRect(), D = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -166,7 +169,7 @@
 			c.width = Math.round(W * D); c.height = Math.round(H * D);
 			var small = W < 760;
 			cx = small ? W * 0.5 : W * 0.7; cy = small ? H * 0.32 : H * 0.5;
-			shadow = small ? Math.min(W * 0.1, H * 0.075) : Math.min(W * 0.056, H * 0.1);   // radius of the dark disc on screen
+			shadow = small ? Math.min(W * 0.075, H * 0.06) : Math.min(W * 0.048, H * 0.09);   // radius of the dark disc on screen
 			pxScale = shadow / (2.6 * F / DIST);                                             // px per unit of the image plane
 			// stars and a faint warm haze, drawn once
 			x.setTransform(D, 0, 0, D, 0, 0); x.fillStyle = "#000"; x.fillRect(0, 0, W, H);
@@ -179,13 +182,15 @@
 			}
 			if (gl) {
 				var g = x.createRadialGradient(cx, cy, shadow, cx, cy, shadow * 7);
-				g.addColorStop(0, "rgba(255,170,90,.1)"); g.addColorStop(0.4, "rgba(255,130,60,.03)"); g.addColorStop(1, "rgba(255,120,50,0)");
+				g.addColorStop(0, "rgba(255,170,90,.07)"); g.addColorStop(0.4, "rgba(255,130,60,.02)"); g.addColorStop(1, "rgba(255,120,50,0)");
 				x.fillStyle = g; x.fillRect(0, 0, W, H);
 				// the shader only covers a box around the disk
-				var hw = Math.min(W, R_OUT * F / DIST * pxScale * 1.12), hh = hw * 0.72;
+				var hw = Math.min(W, R_OUT * F / DIST * pxScale * 1.32), hh = hw * 0.52;
 				GD = Math.min(window.devicePixelRatio || 1, hw > 330 ? 1 : 1.5);
 				glc.style.left = (cx - hw) + "px"; glc.style.top = (cy - hh) + "px"; glc.style.width = hw * 2 + "px"; glc.style.height = hh * 2 + "px";
 				glc.width = Math.round(hw * 2 * GD); glc.height = Math.round(hh * 2 * GD);
+				glow.style.left = glc.style.left; glow.style.top = glc.style.top; glow.style.width = glc.style.width; glow.style.height = glc.style.height;
+				glow.width = Math.round(hw / 2); glow.height = Math.round(hh / 2);
 				gl.viewport(0, 0, glc.width, glc.height);
 			} else {
 				// no WebGL: a plain dark disc with a bright rim
@@ -196,11 +201,12 @@
 		}
 		function frame(dt) {
 			if (!gl) return;
-			time += dt; incl += (inclTo - incl) * 0.04; roll += (rollTo - roll) * 0.04;
+			time += dt * 0.3; incl += (inclTo - incl) * 0.04; roll += (rollTo - roll) * 0.04;
 			gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
 			gl.uniform2f(U.uRes, glc.width, glc.height); gl.uniform1f(U.uTime, time);
 			gl.uniform1f(U.uScale, pxScale * GD); gl.uniform1f(U.uIncl, incl); gl.uniform1f(U.uRoll, roll);
 			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+			if (frames++ % 2 === 0) { gctx.clearRect(0, 0, glow.width, glow.height); gctx.drawImage(glc, 0, 0, glow.width, glow.height); }
 		}
 		function tick(t) {
 			raf = 0; if (!vis || document.hidden) return;
@@ -210,14 +216,14 @@
 		function go() { if (gl && vis && !raf && !reduceMotion) { last = 0; raf = requestAnimationFrame(tick); } }
 		host.addEventListener("pointermove", function (e) {
 			var r = host.getBoundingClientRect();
-			inclTo = 0.12 + 0.16 * Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-			rollTo = -0.22 + 0.16 * ((e.clientX - r.left) / r.width - 0.5);
+			inclTo = 0.03 + 0.08 * Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+			rollTo = -0.1 + 0.1 * ((e.clientX - r.left) / r.width - 0.5);
 		}, { passive: true });
-		host.addEventListener("pointerleave", function () { inclTo = 0.2; rollTo = -0.22; });
+		host.addEventListener("pointerleave", function () { inclTo = 0.06; rollTo = -0.1; });
 		var rs; window.addEventListener("resize", function () { clearTimeout(rs); rs = setTimeout(setup, 150); });
 		if ("IntersectionObserver" in window) new IntersectionObserver(function (en) { vis = en[0].isIntersecting; go(); }).observe(host);
 		document.addEventListener("visibilitychange", go);
-		time = 3; setup(); go();
+		time = 12; setup(); go();
 	})();
 
 	/* ---------- 2. Rocket engine ----------
