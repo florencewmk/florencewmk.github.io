@@ -7,8 +7,8 @@
 :root {
 	--bg: #000;
 	--ink: #f5f5f7;
-	--muted: #c6c4d2;
-	--faint: #9391a0;
+	--muted: #dddbe8;
+	--faint: #b6b4c4;
 	--line: rgba(255, 255, 255, 0.1);
 	--line-strong: rgba(255, 255, 255, 0.18);
 
@@ -521,24 +521,21 @@ ol { list-style: none; margin: 0; padding: 0; }
 .grade-text h2 { font-size: 28px; margin-bottom: 12px; }
 .grade-text p { font-size: 18px; color: #e6e4f0; margin-bottom: 14px; }
 .grade-text .text-link { font-size: 16px; }
-.grade-scale { display: grid; gap: 6px; }
-.grade-scale li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 11px 16px; border-radius: 12px; background: rgba(255, 255, 255, .045); font-size: 17px; }
-.grade-scale li span { color: var(--muted); font-variant-numeric: tabular-nums; }
-.grade-scale li strong { font-weight: 600; }
-.grade-scale li.is-top { background: rgba(var(--glass-purple), .24); box-shadow: inset 0 0 0 1px rgba(214, 200, 255, .4); }
-.grade-scale li.is-top span { color: #f0ecff; }
+.grade-scale { display: grid; }
+.grade-scale li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 2px; border-bottom: 1px solid var(--line); font-size: 18px; }
+.grade-scale li:last-child { border-bottom: 0; }
+.grade-scale li span { color: #f0eef7; font-variant-numeric: tabular-nums; }
+.grade-scale li strong { font-weight: 500; color: #f0eef7; }
 @media (max-width: 860px) { .grade-note { grid-template-columns: 1fr; gap: 22px; padding: 24px 20px; } }
 
 /* PDF rows: a real button, so it is obvious the row opens a file */
 .pdf-btn {
 	display: inline-flex; align-items: center; gap: 9px; padding: 12px 20px; border-radius: 999px; white-space: nowrap;
-	font-size: 16px; font-weight: 600; color: #f4f0ff;
-	background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 55%), rgba(var(--glass-purple), .3);
-	border: 1px solid rgba(214, 200, 255, .5);
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 8px 28px -12px rgba(var(--glass-purple), .8);
-	transition: transform .45s cubic-bezier(.3, 1.6, .5, 1), box-shadow .3s, background-color .3s;
+	font-size: 17px; font-weight: 600; color: var(--ink);
+	background-color: transparent; border: 1px solid rgba(255, 255, 255, .34);
+	transition: transform .45s cubic-bezier(.3, 1.6, .5, 1), box-shadow .3s, background-color .3s, border-color .3s;
 }
-.row-link:hover .pdf-btn { transform: translateX(4px) scale(1.04); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 0 34px -8px rgba(var(--glass-purple), 1); }
+.row-link:hover .pdf-btn, .row-link:focus-visible .pdf-btn { transform: translateX(4px); background-color: rgba(var(--glass-purple), .3); border-color: rgba(214, 200, 255, .6); box-shadow: 0 0 30px -8px rgba(var(--glass-purple), 1); }
 .row-link:active .pdf-btn { transform: scale(.94); transition-duration: .08s; }
 @media (max-width: 760px) { .pdf-btn { justify-self: start; margin-top: 10px; } }
 
@@ -616,3 +613,42 @@ ol { list-style: none; margin: 0; padding: 0; }
 		radial-gradient(110px circle at var(--mx) var(--my), rgba(255, 255, 255, .18), transparent 70%);
 }
 @media (prefers-reduced-motion: reduce) { .about-hero-inner > * { animation: none !important; opacity: 1 !important; transform: none !important; } }
+
+
+/* ---------- Second pass: smaller titles, larger and brighter reading text ---------- */
+.page-head h1 { font-size: clamp(40px, 5.4vw, 68px); letter-spacing: -0.04em; line-height: 1; }
+.about-hero h1 { font-size: clamp(44px, 6.4vw, 84px); }
+.page .section-head h2, .story .section-head h2 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -0.025em; }
+.page .section { padding-top: clamp(64px, 8vw, 104px); }
+.page .section-head { margin-bottom: 24px; }
+.page-head .lede, .about-hero .lede { font-size: clamp(19px, 1.7vw, 22px); color: #f0eef7; }
+.grade-text h2 { font-size: 24px; }
+.grade-text p { color: #f0eef7; }
+.posts-title { font-size: 22px; }
+
+.page .row-main strong { font-size: 23px; }
+.page .row-main em, .page .grid-cards p, .page .feature-text p:not(.label), .page .figure figcaption { font-size: 18.5px; line-height: 1.55; color: #f0eef7; }
+.page .row-main ul { font-size: 18px; line-height: 1.6; color: #f0eef7; }
+.page .row-main ul li { margin: 7px 0; }
+.page .mono.row-date { font-size: 16px; color: #cfcce0; }
+.page .row-place { font-size: 16px; color: #cfcce0; }
+.page .label { font-size: 16.5px; }
+.page .grid-cards h3 { font-size: 22px; }
+.page .prose { font-size: 19.5px; color: #f0eef7; }
+.page .crumb, .page .back { font-size: 16.5px; }
+.posts-note, .post figcaption { font-size: 17.5px; color: #e6e4f0; }
+.footer { font-size: 14.5px; }
+.page-projects .feature-text h3 { font-size: 28px; }
+.page-projects .feature-text p:not(.label), .page-projects .row-main em { font-size: 19.5px; color: #f4f2fa; }
+.page-projects .rows-compact .row-main strong { font-size: 23px; }
+.repo-meta { font-size: 15px; }
+.repo-topic { font-size: 14px; }
+.repo-search, .repo-chip { font-size: 16px; }
+@media (min-width: 761px) { .nav li a { font-size: 15.5px; } }
+@media (max-width: 760px) {
+	.page .row-main em, .page .grid-cards p, .page .feature-text p:not(.label), .page .row-main ul { font-size: 17.5px; }
+	.page-projects .feature-text h3 { font-size: 25px; }
+}
+
+/* About: the black hole is rendered in WebGL on its own canvas above the star canvas */
+.blackhole-gl { position: absolute; z-index: 0; contain: strict; pointer-events: none; }
