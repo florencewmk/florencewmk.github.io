@@ -672,3 +672,10 @@ ol { list-style: none; margin: 0; padding: 0; }
 /* solid button: quiet until hovered or pressed */
 .btn-solid { box-shadow: none; text-shadow: none; background: rgba(var(--glass-purple), .2); border-color: rgba(214, 200, 255, .4); }
 .btn-solid:hover, .btn-solid:focus-visible { background: rgba(var(--glass-purple), .34); border-color: rgba(214, 200, 255, .65); box-shadow: 0 0 34px -8px rgba(var(--glass-purple), 1); }
+
+/* First (date / level) and last (place) columns of rows use the same type as the descriptions */
+.page .row-date, .page .mono.row-date, .page .row-place {
+	font-family: var(--sans); font-size: 18.5px; line-height: 1.55; font-weight: 400;
+	letter-spacing: 0; text-transform: none; color: #f0eef7;
+}
+@media (max-width: 760px) { .page .row-date, .page .mono.row-date, .page .row-place { font-size: 17.5px; } }
