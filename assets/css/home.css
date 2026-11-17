@@ -697,3 +697,13 @@ ol { list-style: none; margin: 0; padding: 0; }
 /* Homepage hero: name on one line, description justified so both edges line up */
 .hero h1 { font-size: clamp(38px, 4.5vw, 66px); white-space: nowrap; line-height: 1.02; letter-spacing: -0.035em; margin: 16px 0 22px; }
 .hero .lede { text-align: justify; -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 6 3 2; }
+
+/* Homepage hero: text and engine form one group, centred under the toolbar on any width */
+.engine-slot { display: none; }
+@media (min-width: 760px) {
+	.home .hero-inner { display: grid; grid-template-columns: minmax(0, 520px) clamp(200px, 14vw, 290px); column-gap: clamp(100px, 9.5vw, 190px); justify-content: center; align-items: center; max-width: none; }
+	.home .engine-slot { display: block; height: 1px; }
+	.home .hero-text { min-width: 0; }
+	.home .hero .label { white-space: nowrap; }
+	.home .hero .lede { max-width: none; }
+}
