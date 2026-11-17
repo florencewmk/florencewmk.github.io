@@ -813,3 +813,6 @@ ol { list-style: none; margin: 0; padding: 0; }
 
 /* CV and list bullets: justified so each line ends on the same right edge */
 .row-main ul li { text-align: justify; -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 6 3 2; }
+
+/* About (desktop): black hole shifted further right, past the text column */
+@media (min-width: 1061px) { .bh-slot { margin-right: -90px; margin-left: 50px; } }
