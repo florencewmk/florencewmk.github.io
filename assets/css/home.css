@@ -728,3 +728,16 @@ ol { list-style: none; margin: 0; padding: 0; }
 	.about-hero::before { background: none; }
 	.page .about-hero + .section { padding-top: 40px; }
 }
+
+/* About (desktop): heading uses the same column as the sections below, and the black hole video is
+   placed so its disk ends at that column's right edge, so heading and black hole sit centred together */
+@media (min-width: 761px) {
+	.about-hero { padding-left: 0; padding-right: 0; }
+	.about-hero-inner { max-width: var(--max); padding: 0 var(--gutter); }
+	.blackhole-video {
+		--bhw: clamp(560px, 46vw, 800px);
+		width: var(--bhw); right: auto;
+		/* column right edge minus the video width minus the part of the frame right of the visible disk (8%) */
+		left: calc(50% + min(var(--max), 100%) / 2 - var(--gutter) - 0.92 * var(--bhw));
+	}
+}
