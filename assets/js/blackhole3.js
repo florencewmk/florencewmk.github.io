@@ -31,6 +31,7 @@ function start(texture) {
 	const canvas = renderer.domElement;
 	canvas.className = "bh-three";
 	canvas.setAttribute("aria-hidden", "true");
+	canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block";
 	hero.insertBefore(canvas, hero.firstChild.nextSibling);
 
 	texture.wrapS = THREE.RepeatWrapping;
