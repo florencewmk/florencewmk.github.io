@@ -861,3 +861,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 .page-contact .contact-side .social .arrow { display: inline; font-size: 20px; }
 .page-contact .contact-side .social-text { flex: 1; }
 @media (max-width: 860px) { .page-contact .contact-side { grid-template-columns: 1fr; } }
+
+/* About: Three.js black hole preview (life.html?three) */
+.bh-three { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: block; }
+.about-hero.has-three .bh-video, .about-hero.has-three .blackhole { display: none; }
