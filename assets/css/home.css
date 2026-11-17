@@ -816,3 +816,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 
 /* About (desktop): black hole shifted further right, past the text column */
 @media (min-width: 1061px) { .bh-slot { margin-right: -90px; margin-left: 50px; } }
+
+/* About: black hole larger and tilted; the leaning and stretching towards the pointer is in home.js */
+.bh-video { width: 205%; transform: translate(-50%, -50%) rotate(-9deg); will-change: transform; }
+@media (max-width: 760px) { .bh-video { width: 190%; } }

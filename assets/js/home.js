@@ -111,21 +111,29 @@
 		document.addEventListener("visibilitychange", sync);
 		sync();
 		if (reduceMotion) return;
-		// lean and drift towards the pointer
-		var hero = vid.closest(".about-hero"), tx = 0, ty = 0, rot = 0, gx = 0, gy = 0, gr = 0, raf = 0;
+		// near the pointer the hole is pulled towards it: it drifts, leans, and stretches along that direction
+		var hero = vid.closest(".about-hero"), BASE = -9;
+		var tx = 0, ty = 0, rot = 0, st = 0, ang = 0, gx = 0, gy = 0, gr = 0, gs = 0, raf = 0;
 		var step = function () {
-			tx += (gx - tx) * 0.06; ty += (gy - ty) * 0.06; rot += (gr - rot) * 0.06;
-			vid.style.transform = "translate(-50%, -50%) translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) rotate(" + rot.toFixed(2) + "deg)";
-			raf = (Math.abs(gx - tx) + Math.abs(gy - ty) + Math.abs(gr - rot) > 0.05) ? requestAnimationFrame(step) : 0;
+			var k = 0.07;
+			tx += (gx - tx) * k; ty += (gy - ty) * k; rot += (gr - rot) * k; st += (gs - st) * k;
+			vid.style.transform = "translate(-50%, -50%) translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) rotate(" + ang.toFixed(1) + "deg) scale(" + (1 + st).toFixed(3) + "," + (1 - st * 0.45).toFixed(3) + ") rotate(" + (-ang + BASE + rot).toFixed(2) + "deg)";
+			raf = (Math.abs(gx - tx) + Math.abs(gy - ty) + Math.abs(gr - rot) + Math.abs(gs - st) * 100 > 0.05) ? requestAnimationFrame(step) : 0;
 		};
 		var kick = function () { if (!raf) raf = requestAnimationFrame(step); };
+		vid.style.transform = "translate(-50%, -50%) rotate(" + BASE + "deg)";
 		hero.addEventListener("pointermove", function (e) {
 			var r = vid.parentNode.getBoundingClientRect();
-			var dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), d = Math.hypot(dx, dy) || 1, pull = Math.min(1, d / 500);
-			gx = dx / d * 34 * pull; gy = dy / d * 22 * pull; gr = Math.max(-1, Math.min(1, dx / 600)) * -4;
+			var dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), d = Math.hypot(dx, dy) || 1;
+			var near = Math.max(0, 1 - d / 520);                 // 1 at the centre, 0 beyond ~520 px
+			var pull = 18 + 70 * near;
+			gx = dx / d * pull * Math.min(1, d / 120); gy = dy / d * pull * 0.8 * Math.min(1, d / 120);
+			ang = Math.atan2(dy, dx) * 180 / Math.PI;
+			gs = 0.16 * near * Math.min(1, d / 120);
+			gr = Math.max(-1, Math.min(1, dx / 500)) * -5;
 			kick();
 		}, { passive: true });
-		hero.addEventListener("pointerleave", function () { gx = gy = gr = 0; kick(); });
+		hero.addEventListener("pointerleave", function () { gx = gy = gr = gs = 0; kick(); });
 	})();
 
 	/* ---------- 2. Rocket engine ----------
