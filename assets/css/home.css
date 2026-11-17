@@ -785,3 +785,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 	.contact-side .social-text { flex: none; }
 }
 @media (prefers-reduced-motion: reduce) { .btn-send.is-sent .send-icon { animation: none; } }
+
+/* Contact: line above the LinkedIn, GitHub and Email row */
+.contact-alt { margin: 34px 0 0; font-size: 17px; color: #e6e4f0; }
+.contact-alt + .contact-side { margin-top: 14px; }
