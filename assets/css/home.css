@@ -810,3 +810,6 @@ ol { list-style: none; margin: 0; padding: 0; }
 }
 @media (max-width: 1060px) and (min-width: 761px) { .bh-slot { flex-basis: 44vw; } }
 @media (max-width: 760px) { .bh-slot { flex: none; width: 100%; aspect-ratio: 1.2; } .bh-video { width: 165%; } }
+
+/* CV and list bullets: justified so each line ends on the same right edge */
+.row-main ul li { text-align: justify; -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 6 3 2; }
