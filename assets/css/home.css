@@ -679,3 +679,17 @@ ol { list-style: none; margin: 0; padding: 0; }
 	letter-spacing: 0; text-transform: none; color: #f0eef7;
 }
 @media (max-width: 760px) { .page .row-date, .page .mono.row-date, .page .row-place { font-size: 17.5px; } }
+
+/* Contact: the Send button springs side to side when a field is missing */
+.form-note:empty { display: none; }
+.form-foot .btn.is-missing { animation: missing-spring .55s cubic-bezier(.3,.7,.4,1); }
+@keyframes missing-spring {
+	0% { transform: translateX(0); }
+	15% { transform: translateX(-9px); }
+	32% { transform: translateX(7px); }
+	50% { transform: translateX(-4px); }
+	68% { transform: translateX(2px); }
+	84% { transform: translateX(-1px); }
+	100% { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) { .form-foot .btn.is-missing { animation: missing-dim .4s ease; } @keyframes missing-dim { 50% { opacity: .55; } } }
