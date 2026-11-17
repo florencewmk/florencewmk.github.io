@@ -399,7 +399,7 @@
 		W = r.width; H = r.height;
 		mobile = W < 760;
 		if (mobile) { cx = W * 0.68; top = H * 0.17; scale = Math.min(W * 0.29, H * 0.155); }
-		else { cx = W * 0.71; top = H * 0.26; scale = Math.min(W * 0.17, H * 0.24); }
+		else { cx = W * 0.64; scale = Math.min(W * 0.16, H * 0.25); top = H * 0.53 - scale * 0.98; }   // whole exploded engine centred vertically
 		// engine and flame canvases only cover a strip around the engine, not the whole hero
 		BX = Math.max(0, Math.floor(cx - 1.7 * scale)); BW = Math.min(W, Math.ceil(cx + 1.7 * scale)) - BX;
 		[canvas, flame.el].forEach(function (c) { c.style.left = BX + "px"; c.style.width = BW + "px"; });
