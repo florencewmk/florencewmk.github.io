@@ -820,3 +820,14 @@ ol { list-style: none; margin: 0; padding: 0; }
 /* About: black hole larger and tilted; the leaning and stretching towards the pointer is in home.js */
 .bh-video { width: 205%; transform: translate(-50%, -50%) rotate(-9deg); will-change: transform; }
 @media (max-width: 760px) { .bh-video { width: 190%; } }
+
+/* Homepage: Blender-rendered rocket engine (turntable video on black; screen blend lets the stars show through) */
+.engine-video { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; mix-blend-mode: screen; pointer-events: none; }
+.home .hero .engine, .home .hero .flame { display: none; }
+@media (min-width: 760px) {
+	.home .hero-inner { grid-template-columns: minmax(0, 520px) clamp(300px, 27vw, 470px); column-gap: clamp(20px, 3vw, 70px); }
+	.home .engine-slot { height: auto; }
+}
+@media (max-width: 759px) {
+	.home .engine-slot { display: block; width: min(72vw, 320px); margin: 28px auto 0; }
+}

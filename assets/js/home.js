@@ -148,6 +148,7 @@
 	var gimbalEl = document.querySelector(".gimbal");
 	if (!hero || !canvas || !canvas.getContext) return;
 	var ctx = canvas.getContext("2d");
+	var videoEngine = !!hero.querySelector(".engine-video");   // star field still runs; drawn engine and flame are skipped
 
 	// --- geometry (engine units, throat radius 0.12). Axis is +y (down the screen), y = 0 is the injector face.
 	var RE = 0.5, Y_E = 1.74;                           // nozzle exit radius and position
@@ -451,7 +452,7 @@
 	var q4 = new Float32Array(12), sv0 = Math.sin(0.3), ea = [0, 0, 0], eb = [0, 0, 0];
 
 	function draw() {
-		if (!W) return;
+		if (!W || videoEngine) return;                 // the homepage now shows a Blender-rendered engine video instead
 		prep();
 		ctx.setTransform(DPR, 0, 0, DPR, -BX * DPR, 0);
 		ctx.clearRect(BX, 0, BW, H);
@@ -602,4 +603,14 @@
 	resize();
 	if (reduceMotion) { time = 1; drawSky(0); draw(); }
 	else raf = requestAnimationFrame(tick);
+})();
+
+/* ---------- Homepage engine video: still frame for people who prefer reduced motion ---------- */
+(function () {
+	var v = document.querySelector(".engine-video");
+	if (!v) return;
+	var mq = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+	function apply() { if (mq && mq.matches) { v.pause(); v.currentTime = 0; } else if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () {}); } }
+	apply();
+	if (mq && mq.addEventListener) mq.addEventListener("change", apply);
 })();
