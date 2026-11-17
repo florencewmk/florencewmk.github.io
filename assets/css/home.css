@@ -845,12 +845,9 @@ ol { list-style: none; margin: 0; padding: 0; }
 .page-about .about-hero-inner { max-width: calc(var(--max) - 2 * var(--gutter)); }
 .page-about .section, .page-contact .page-head, .page-contact .contact-layout { max-width: var(--max); }
 
-/* CV: organisation logos beside entry titles */
-.row-head { display: flex; align-items: center; gap: 14px; }
-.row-head strong { min-width: 0; }
-.row-logo { flex: none; width: 46px; height: 46px; border-radius: 11px; background: #fff; display: grid; place-items: center; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
-.row-logo img { width: 38px; height: 38px; object-fit: contain; display: block; }
-@media (max-width: 760px) { .row-logo { width: 40px; height: 40px; border-radius: 10px; } .row-logo img { width: 33px; height: 33px; } }
-.row-logo-wide { width: 92px; }
-.row-logo-wide img { width: 86px; height: 38px; }
-@media (max-width: 760px) { .row-logo-wide { width: 80px; } .row-logo-wide img { width: 74px; height: 33px; } }
+/* CV: organisation logos under the dates, all tiles the same size, each links to the organisation's website */
+.row-date-text { display: block; }
+.row-logo { display: flex; align-items: center; justify-content: center; width: 104px; height: 52px; margin-top: 14px; border-radius: 12px; background: #fff; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.12); transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
+.row-logo img { display: block; max-width: 88px; max-height: 40px; width: auto; height: auto; object-fit: contain; }
+.row-logo:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 0 18px rgba(var(--glass-purple), .45); }
+@media (max-width: 760px) { .row-logo { width: 88px; height: 44px; margin-top: 10px; } .row-logo img { max-width: 74px; max-height: 34px; } }
