@@ -169,7 +169,7 @@ function start(texture) {
 		fwd.copy(eye).multiplyScalar(-1).normalize();
 		right.crossVectors(new THREE.Vector3(0, 1, 0), fwd).normalize();
 		up.crossVectors(fwd, right);
-		const c = Math.cos(BASE_ROLL), s = Math.sin(BASE_ROLL);
+		const c = Math.cos(BASE_ROLL + roll), s = Math.sin(BASE_ROLL + roll);
 		const r2 = right.clone().multiplyScalar(c).addScaledVector(up, s);
 		up.multiplyScalar(c).addScaledVector(right, -s); right.copy(r2);
 		uniforms.uCamPos.value.copy(eye); uniforms.uFwd.value.copy(fwd);
@@ -190,15 +190,18 @@ function start(texture) {
 		uniforms.uScale.value = (s.width * 0.82) / (20 / DIST) * quality;
 	}
 
-	// pointer: the camera swings a few degrees around the hole, slowly and smoothly
+	// pointer: a real change of viewpoint. Moving up looks down onto the disk (up to ~24 deg),
+	// moving sideways swings round the hole and rolls the view. Slow and smooth.
+	let rollTo = 0, roll = 0;
 	hero.addEventListener("pointermove", (e) => {
-		const s = slot.getBoundingClientRect();
-		const dx = (e.clientX - (s.left + s.width / 2)) / window.innerWidth;
-		const dy = (e.clientY - (s.top + s.height / 2)) / window.innerHeight;
-		azTo = THREE.MathUtils.clamp(dx, -0.6, 0.6) * THREE.MathUtils.degToRad(14);
-		incTo = BASE_INC + THREE.MathUtils.clamp(-dy, -0.6, 0.6) * THREE.MathUtils.degToRad(8);
+		const r = hero.getBoundingClientRect(), s = slot.getBoundingClientRect();
+		const dx = THREE.MathUtils.clamp((e.clientX - (s.left + s.width / 2)) / (r.width * 0.5), -1, 1);
+		const dy = THREE.MathUtils.clamp((e.clientY - (s.top + s.height / 2)) / (r.height * 0.5), -1, 1);
+		incTo = BASE_INC + Math.max(0, -dy) * THREE.MathUtils.degToRad(20) - Math.max(0, dy) * THREE.MathUtils.degToRad(3);
+		azTo = dx * THREE.MathUtils.degToRad(30);
+		rollTo = -dx * THREE.MathUtils.degToRad(7);
 	}, { passive: true });
-	hero.addEventListener("pointerleave", () => { azTo = 0; incTo = BASE_INC; });
+	hero.addEventListener("pointerleave", () => { azTo = 0; incTo = BASE_INC; rollTo = 0; });
 
 	let visible = true, raf = 0, lastT = 0, avg = 0.016, counted = 0;
 	const maxQ = Math.min(window.devicePixelRatio || 1, 1.25);
@@ -208,7 +211,7 @@ function start(texture) {
 		if (!visible || document.hidden) return;
 		const dt = Math.min(clock.getDelta(), 0.05);   // also advances clock.elapsedTime
 		if (!reduceMotion) uniforms.uTime.value += dt;
-		az += (azTo - az) * 0.025; inc += (incTo - inc) * 0.025;
+		az += (azTo - az) * 0.03; inc += (incTo - inc) * 0.03; roll += (rollTo - roll) * 0.03;
 		updateCamera();
 		composer.render();
 		// keep it smooth: average the frame time (ignoring pauses) and adjust the resolution both ways
@@ -228,6 +231,9 @@ function start(texture) {
 
 	layout(); updateCamera();
 	hero.classList.add("has-three");
+	const tag = document.createElement("span");
+	tag.className = "bh-tag"; tag.textContent = "Three.js preview · move the mouse up and sideways";
+	hero.appendChild(tag);
 	go();
 	window.__bh3 = { renderer, bloom, uniforms };
 }
