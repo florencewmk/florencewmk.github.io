@@ -789,3 +789,24 @@ ol { list-style: none; margin: 0; padding: 0; }
 /* Contact: line above the LinkedIn, GitHub and Email row */
 .contact-alt { margin: 34px 0 0; font-size: 17px; color: #e6e4f0; }
 .contact-alt + .contact-side { margin-top: 14px; }
+
+/* About: hobbies as plain rows (no boxes), title beside the text; room for photos later */
+.hobbies { border-top: 1px solid var(--line); }
+.hobby { display: grid; grid-template-columns: 260px 1fr; gap: 28px; padding: 22px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.hobby h3 { margin: 0; font-size: 21px; font-weight: 600; color: var(--ink); }
+.hobby p { margin: 0; font-size: 19px; line-height: 1.6; color: #dcdae6; text-align: justify; -webkit-hyphens: auto; hyphens: auto; }
+@media (max-width: 760px) { .hobby { grid-template-columns: 1fr; gap: 6px; } }
+
+/* About: the black-hole video, larger, centred on the title and description */
+.blackhole-glow2, .blackhole-halo { display: none; }
+.page-about .about-hero-inner { gap: 40px; }
+.about-text { flex: 0 1 370px; position: relative; z-index: 2; }
+.bh-slot { position: relative; flex: 0 0 470px; aspect-ratio: 1.15; z-index: 0; }
+.bh-video {
+	position: absolute; left: 50%; top: 50%; width: 168%; height: auto; aspect-ratio: 16 / 10;
+	transform: translate(-50%, -50%); background: #000; pointer-events: none;
+	-webkit-mask-image: radial-gradient(ellipse 44% 50% at 50% 50%, #000 35%, transparent 100%);
+	mask-image: radial-gradient(ellipse 44% 50% at 50% 50%, #000 35%, transparent 100%);
+}
+@media (max-width: 1060px) and (min-width: 761px) { .bh-slot { flex-basis: 44vw; } }
+@media (max-width: 760px) { .bh-slot { flex: none; width: 100%; aspect-ratio: 1.2; } .bh-video { width: 165%; } }
