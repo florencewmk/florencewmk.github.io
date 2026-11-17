@@ -653,7 +653,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 /* About: the black hole is rendered in WebGL on its own canvas above the star canvas */
 .blackhole-gl { position: absolute; z-index: 0; contain: strict; pointer-events: none; }
 
-.blackhole-glow { position: absolute; z-index: 0; pointer-events: none; filter: blur(20px) brightness(1.15); mix-blend-mode: screen; opacity: .6; }
+.blackhole-glow { position: absolute; z-index: 0; pointer-events: none; filter: blur(9px) brightness(1.1); mix-blend-mode: screen; opacity: .32; }
 
 /* homepage name: large, not shouting */
 .hero h1 { font-size: clamp(44px, 6.2vw, 92px); letter-spacing: -0.04em; line-height: .98; margin: 18px 0 22px; }

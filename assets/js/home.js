@@ -81,17 +81,17 @@
 	   non-rotating (Schwarzschild) black hole and bends it step by step with the exact
 	   photon equation of motion, so the shadow, the thin photon ring and the far side of
 	   the disk arching over the top all come out of the physics instead of being drawn.
-	   The disk is thin, hotter and faster towards the inner edge, and brighter and bluer
-	   on the side moving towards the viewer (relativistic Doppler beaming) and dimmer on
-	   the other. Lengths are in Schwarzschild radii. A 2D canvas behind holds the stars.
+	   Styled after Gargantua in Interstellar: seen just above the disk plane, a thin disk
+	   with fine concentric lanes, hotter and faster towards the inner edge, with Doppler
+	   beaming kept faint as in the film. Lengths are in Schwarzschild radii. A 2D canvas behind holds the stars.
 	   Moving the cursor changes the viewing angle slightly. */
 	(function () {
 		var c = document.querySelector(".blackhole");
 		if (!c || !c.getContext) return;
 		var host = c.parentNode, x = c.getContext("2d");
 		var W = 0, H = 0, cx = 0, cy = 0, shadow = 80, time = 0, raf = 0, last = 0, vis = true;
-		var incl = 0.06, inclTo = 0.06, roll = -0.1, rollTo = -0.1;
-		var F = 3, DIST = 22, R_OUT = 12;
+		var incl = 0.11, inclTo = 0.11, roll = -0.08, rollTo = -0.08;
+		var F = 3, DIST = 30, R_OUT = 15;
 		var glc = document.createElement("canvas"), gl = null, prog = null, U = {}, GD = 1, pxScale = 1;
 		glc.className = "blackhole-gl"; glc.setAttribute("aria-hidden", "true");
 		// soft bloom: a small blurred copy of the render, added on top of the stars
@@ -103,13 +103,13 @@
 			var fs = [
 				"precision highp float;",
 				"uniform vec2 uRes;uniform float uTime;uniform float uScale;uniform float uIncl;uniform float uRoll;",
-				"const float RIN=1.9;const float ROUT=12.0;const float DIST=22.0;const float FOC=3.0;",
+				"const float RIN=2.35;const float ROUT=15.0;const float DIST=30.0;const float FOC=3.0;",
 				"float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
 				"float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);}",
 				"float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*noise(p);p=p*2.07+vec2(3.1,7.7);a*=.5;}return v;}",
 				// gas pattern sheared by differential rotation (inner orbits are faster)
-				"float gas(vec3 c,float r,float ph){float a=atan(c.z,c.x)+ph*2.4*pow(r,-1.5);vec2 q=vec2(cos(a),sin(a))*r;return fbm(q*1.25+ph*0.013);}",
-				"vec3 heat(float t){vec3 c=mix(vec3(.62,.2,.04),vec3(1.,.5,.14),smoothstep(.2,.5,t));c=mix(c,vec3(1.,.8,.5),smoothstep(.45,.75,t));return mix(c,vec3(1.,.95,.86),smoothstep(.72,1.,t));}",
+				"float gas(vec3 c,float r,float ph){float a=atan(c.z,c.x)+ph*2.4*pow(r,-1.5);vec2 q=vec2(cos(a),sin(a));return fbm(q*1.7+vec2(r*4.3,r*2.6))*.65+fbm(q*3.9+vec2(r*11.,r*7.))*.35;}",
+				"vec3 heat(float t){vec3 c=mix(vec3(.55,.17,.03),vec3(1.,.47,.12),smoothstep(.1,.45,t));c=mix(c,vec3(1.,.76,.42),smoothstep(.4,.72,t));return mix(c,vec3(1.,.96,.88),smoothstep(.7,1.,t));}",
 				"void main(){",
 				"  vec2 uv=(gl_FragCoord.xy-uRes*.5)/uScale;",
 				"  float cr=cos(uRoll),sr=sin(uRoll);uv=vec2(uv.x*cr-uv.y*sr,uv.x*sr+uv.y*cr);",
@@ -119,30 +119,32 @@
 				"  vec3 hv=cross(p,v);float h2=dot(hv,hv);",
 				"  vec3 col=vec3(0.);float trans=1.;",
 				"  float P=36.,f1=fract(uTime/P),f2=fract(uTime/P+.5),w1=1.-abs(1.-2.*f1);",
-				"  for(int i=0;i<170;i++){",
+				"  for(int i=0;i<210;i++){",
 				"    float r2=dot(p,p);",
 				"    if(r2<1.){trans=0.;break;}",                                   // fell through the horizon
 				"    if(r2>DIST*DIST*1.2&&dot(p,v)>0.)break;",                       // escaped
-				"    float dt=clamp(.06*sqrt(r2),.045,1.4);",
+				"    float dt=clamp(.055*sqrt(r2),.04,1.4);",
 				"    v+=-1.5*h2*p/(r2*r2*sqrt(r2))*dt;",                             // light bending
 				"    vec3 np=p+v*dt;",
 				"    if(p.y*np.y<0.){",                                             // crossed the disk plane
 				"      vec3 c=mix(p,np,p.y/(p.y-np.y));float r=length(c.xz);",
 				"      if(r>RIN&&r<ROUT){",
 				"        float n=w1*gas(c,r,18.+f1*P)+(1.-w1)*gas(c,r,18.+f2*P+7.);",
-				"        float band=noise(vec2(r*1.6,1.7))*.6+noise(vec2(r*5.,5.))*.4;",
-				"        float dens=(.72+.28*band)*(.62+.76*n);",
+				"        float lanes=noise(vec2(r*2.2,1.7))*.5+noise(vec2(r*6.,5.))*.36+noise(vec2(r*19.,9.))*.14;",   // fine concentric lanes, as in the film
+				"        float dens=(.45+.75*lanes)*(.45+1.1*n*n);",
 				"        float beta=sqrt(.5/r),cs=dot(vec3(c.z,0.,-c.x)/r,-normalize(v));",
-				"        float g=mix(1.,sqrt(1.-beta*beta)/(1.-beta*cs),.12);",      // Doppler beaming almost switched off, as in the film
-				"        float tn=pow(min(1.,3./r),.6)*g*.92;",
-				"        float a=clamp(dens*1.3,0.,1.)*smoothstep(RIN,RIN+.35,r)*(1.-smoothstep(ROUT-7.,ROUT-.5,r));",
-				"        col+=trans*heat(tn)*pow(g,2.)*pow(min(1.,3./r),1.5)*dens*3.6*a;",
-				"        trans*=1.-a*.85;",
+				"        float g=mix(1.,sqrt(1.-beta*beta)/(1.-beta*cs),.18);",      // Doppler beaming almost switched off, as in the film
+				"        float x=RIN/r,tn=pow(x,.75)*g;",                                // temperature falls off outwards
+				"        float edge=smoothstep(RIN*.97,RIN*1.08,r)*(1.-smoothstep(ROUT*.45,ROUT,r));",
+				"        float a=clamp(dens*1.6,0.,1.)*edge;",
+				"        float I=pow(x,1.9)*(1.-.55*sqrt(x));",                     // emitted brightness per area
+				"        col+=trans*heat(tn)*pow(g,3.)*I*dens*6.5*a;",
+				"        trans*=1.-a*.93;",
 				"      }",
 				"    }",
 				"    p=np;",
 				"  }",
-				"  col=1.-exp(-col*1.5);",
+				"  col=1.-exp(-col*1.45);col=pow(col,vec3(1.08));",
 				"  float al=clamp(max(1.-trans,max(col.r,max(col.g,col.b))),0.,1.);",
 				"  gl_FragColor=vec4(col,al);",
 				"}"
@@ -167,8 +169,8 @@
 			W = r.width; H = r.height;
 			c.width = Math.round(W * D); c.height = Math.round(H * D);
 			var small = W < 760;
-			cx = small ? W * 0.5 : W * 0.7; cy = small ? H * 0.32 : H * 0.5;
-			shadow = small ? Math.min(W * 0.075, H * 0.06) : Math.min(W * 0.048, H * 0.09);   // radius of the dark disc on screen
+			cx = small ? W * 0.5 : W * 0.69; cy = small ? H * 0.32 : H * 0.5;
+			shadow = small ? Math.min(W * 0.07, H * 0.055) : Math.min(W * 0.05, H * 0.085);   // radius of the dark disc on screen
 			pxScale = shadow / (2.6 * F / DIST);                                             // px per unit of the image plane
 			// stars and a faint warm haze, drawn once
 			x.setTransform(D, 0, 0, D, 0, 0); x.fillStyle = "#000"; x.fillRect(0, 0, W, H);
@@ -184,7 +186,7 @@
 				g.addColorStop(0, "rgba(255,170,90,.07)"); g.addColorStop(0.4, "rgba(255,130,60,.02)"); g.addColorStop(1, "rgba(255,120,50,0)");
 				x.fillStyle = g; x.fillRect(0, 0, W, H);
 				// the shader only covers a box around the disk
-				var hw = Math.min(W, R_OUT * F / DIST * pxScale * 1.32), hh = hw * 0.52;
+				var hw = Math.min(W, R_OUT * F / DIST * pxScale * 1.2), hh = hw * 0.5;
 				GD = Math.min(window.devicePixelRatio || 1, hw > 330 ? 1 : 1.5);
 				glc.style.left = (cx - hw) + "px"; glc.style.top = (cy - hh) + "px"; glc.style.width = hw * 2 + "px"; glc.style.height = hh * 2 + "px";
 				glc.width = Math.round(hw * 2 * GD); glc.height = Math.round(hh * 2 * GD);
@@ -215,10 +217,10 @@
 		function go() { if (gl && vis && !raf && !reduceMotion) { last = 0; raf = requestAnimationFrame(tick); } }
 		host.addEventListener("pointermove", function (e) {
 			var r = host.getBoundingClientRect();
-			inclTo = 0.03 + 0.08 * Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-			rollTo = -0.1 + 0.1 * ((e.clientX - r.left) / r.width - 0.5);
+			inclTo = 0.07 + 0.08 * Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+			rollTo = -0.08 + 0.1 * ((e.clientX - r.left) / r.width - 0.5);
 		}, { passive: true });
-		host.addEventListener("pointerleave", function () { inclTo = 0.06; rollTo = -0.1; });
+		host.addEventListener("pointerleave", function () { inclTo = 0.11; rollTo = -0.08; });
 		var rs; window.addEventListener("resize", function () { clearTimeout(rs); rs = setTimeout(setup, 150); });
 		if ("IntersectionObserver" in window) new IntersectionObserver(function (en) { vis = en[0].isIntersecting; go(); }).observe(host);
 		document.addEventListener("visibilitychange", go);
