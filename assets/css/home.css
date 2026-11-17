@@ -844,3 +844,10 @@ ol { list-style: none; margin: 0; padding: 0; }
    (max 1180px incl. gutters), like Projects, Repositories and CV. */
 .page-about .about-hero-inner { max-width: calc(var(--max) - 2 * var(--gutter)); }
 .page-about .section, .page-contact .page-head, .page-contact .contact-layout { max-width: var(--max); }
+
+/* CV: organisation logos beside entry titles */
+.row-head { display: flex; align-items: center; gap: 14px; }
+.row-head strong { min-width: 0; }
+.row-logo { flex: none; width: 46px; height: 46px; border-radius: 11px; background: #fff; display: grid; place-items: center; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+.row-logo img { width: 38px; height: 38px; object-fit: contain; display: block; }
+@media (max-width: 760px) { .row-logo { width: 40px; height: 40px; border-radius: 10px; } .row-logo img { width: 33px; height: 33px; } }
