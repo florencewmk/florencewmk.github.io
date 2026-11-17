@@ -707,3 +707,24 @@ ol { list-style: none; margin: 0; padding: 0; }
 	.home .hero .label { white-space: nowrap; }
 	.home .hero .lede { max-width: none; }
 }
+
+/* About: ray-traced black hole video, and a compact hero (less empty space above and below) */
+.blackhole-gl, .blackhole-glow { display: none; }
+.about-hero { min-height: clamp(420px, 56svh, 540px); padding: 84px var(--gutter) 0; align-items: center; }
+.about-hero::after { height: 90px; }
+.about-hero h1 { margin-bottom: 18px; }
+.blackhole-video {
+	position: absolute; z-index: 0; pointer-events: none; background: #000;
+	width: clamp(560px, 64vw, 1080px); aspect-ratio: 16 / 9; height: auto;
+	right: -2vw; top: 50%; transform: translateY(-46%);
+	-webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 62%, transparent 100%);
+	mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 62%, transparent 100%);
+}
+.page .about-hero + .section { padding-top: clamp(8px, 2vw, 28px); }
+@media (max-width: 760px) {
+	.about-hero { min-height: 0; padding: 0 var(--gutter) 8px; display: block; }
+	.blackhole-video { position: relative; display: block; width: 150vw; max-width: none; right: auto; top: auto; margin: 64px 0 -18vw -25vw; transform: none; }
+	.about-hero-inner { position: relative; }
+	.about-hero::before { background: none; }
+	.page .about-hero + .section { padding-top: 40px; }
+}

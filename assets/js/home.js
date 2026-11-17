@@ -5,7 +5,7 @@
       screens) assembles it and fires it. The flame throttles up while the cursor moves.
    3. Scroll reveal
    4. Nav: a short spring when a link is pressed
-   5. About page: a ray-traced black hole with a spinning accretion disk
+   5. About page: star field and the looping black-hole video
    No dependencies. */
 (function () {
 	"use strict";
@@ -77,154 +77,39 @@
 	})();
 
 	/* ---------- 5. About page: black hole ----------
-	   Rendered by tracing light rays in a WebGL shader. Every pixel sends a ray towards a
-	   non-rotating (Schwarzschild) black hole and bends it step by step with the exact
-	   photon equation of motion, so the shadow, the thin photon ring and the far side of
-	   the disk arching over the top all come out of the physics instead of being drawn.
-	   Styled after Gargantua in Interstellar: seen just above the disk plane, a thin disk
-	   with fine concentric lanes, hotter and faster towards the inner edge, with Doppler
-	   beaming kept faint as in the film. Lengths are in Schwarzschild radii. A 2D canvas behind holds the stars.
-	   Moving the cursor changes the viewing angle slightly. */
+	   The black hole itself is a pre-rendered, seamlessly looping video (ray-traced offline:
+	   Schwarzschild light bending, Gargantua-style thin disk, bloom). This canvas only draws
+	   the star field around it. The video pauses when off screen or with reduced motion. */
 	(function () {
 		var c = document.querySelector(".blackhole");
-		if (!c || !c.getContext) return;
-		var host = c.parentNode, x = c.getContext("2d");
-		var W = 0, H = 0, cx = 0, cy = 0, shadow = 80, time = 0, raf = 0, last = 0, vis = true;
-		var incl = 0.11, inclTo = 0.11, roll = -0.08, rollTo = -0.08;
-		var F = 3, DIST = 30, R_OUT = 15;
-		var glc = document.createElement("canvas"), gl = null, prog = null, U = {}, GD = 1, pxScale = 1;
-		glc.className = "blackhole-gl"; glc.setAttribute("aria-hidden", "true");
-		// soft bloom: a small blurred copy of the render, added on top of the stars
-		var glow = document.createElement("canvas"), gctx = glow.getContext("2d"), frames = 0;
-		glow.className = "blackhole-glow"; glow.setAttribute("aria-hidden", "true");
-		try { gl = glc.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: false }); } catch (e) { gl = null; }
-		if (gl) {
-			var vs = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
-			var fs = [
-				"precision highp float;",
-				"uniform vec2 uRes;uniform float uTime;uniform float uScale;uniform float uIncl;uniform float uRoll;",
-				"const float RIN=2.35;const float ROUT=15.0;const float DIST=30.0;const float FOC=3.0;",
-				"float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}",
-				"float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);}",
-				"float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*noise(p);p=p*2.07+vec2(3.1,7.7);a*=.5;}return v;}",
-				// gas pattern sheared by differential rotation (inner orbits are faster)
-				"float gas(vec3 c,float r,float ph){float a=atan(c.z,c.x)+ph*2.4*pow(r,-1.5);vec2 q=vec2(cos(a),sin(a));return fbm(q*1.7+vec2(r*4.3,r*2.6))*.65+fbm(q*3.9+vec2(r*11.,r*7.))*.35;}",
-				"vec3 heat(float t){vec3 c=mix(vec3(.55,.17,.03),vec3(1.,.47,.12),smoothstep(.1,.45,t));c=mix(c,vec3(1.,.76,.42),smoothstep(.4,.72,t));return mix(c,vec3(1.,.96,.88),smoothstep(.7,1.,t));}",
-				"void main(){",
-				"  vec2 uv=(gl_FragCoord.xy-uRes*.5)/uScale;",
-				"  float cr=cos(uRoll),sr=sin(uRoll);uv=vec2(uv.x*cr-uv.y*sr,uv.x*sr+uv.y*cr);",
-				"  vec3 ro=vec3(0.,sin(uIncl),-cos(uIncl))*DIST;",
-				"  vec3 fw=normalize(-ro),rt=normalize(cross(vec3(0.,1.,0.),fw)),up=cross(fw,rt);",
-				"  vec3 v=normalize(fw*FOC+rt*uv.x+up*uv.y),p=ro;",
-				"  vec3 hv=cross(p,v);float h2=dot(hv,hv);",
-				"  vec3 col=vec3(0.);float trans=1.;",
-				"  float P=36.,f1=fract(uTime/P),f2=fract(uTime/P+.5),w1=1.-abs(1.-2.*f1);",
-				"  for(int i=0;i<210;i++){",
-				"    float r2=dot(p,p);",
-				"    if(r2<1.){trans=0.;break;}",                                   // fell through the horizon
-				"    if(r2>DIST*DIST*1.2&&dot(p,v)>0.)break;",                       // escaped
-				"    float dt=clamp(.055*sqrt(r2),.04,1.4);",
-				"    v+=-1.5*h2*p/(r2*r2*sqrt(r2))*dt;",                             // light bending
-				"    vec3 np=p+v*dt;",
-				"    if(p.y*np.y<0.){",                                             // crossed the disk plane
-				"      vec3 c=mix(p,np,p.y/(p.y-np.y));float r=length(c.xz);",
-				"      if(r>RIN&&r<ROUT){",
-				"        float n=w1*gas(c,r,18.+f1*P)+(1.-w1)*gas(c,r,18.+f2*P+7.);",
-				"        float lanes=noise(vec2(r*2.2,1.7))*.5+noise(vec2(r*6.,5.))*.36+noise(vec2(r*19.,9.))*.14;",   // fine concentric lanes, as in the film
-				"        float dens=(.45+.75*lanes)*(.45+1.1*n*n);",
-				"        float beta=sqrt(.5/r),cs=dot(vec3(c.z,0.,-c.x)/r,-normalize(v));",
-				"        float g=mix(1.,sqrt(1.-beta*beta)/(1.-beta*cs),.18);",      // Doppler beaming almost switched off, as in the film
-				"        float x=RIN/r,tn=pow(x,.75)*g;",                                // temperature falls off outwards
-				"        float edge=smoothstep(RIN*.97,RIN*1.08,r)*(1.-smoothstep(ROUT*.45,ROUT,r));",
-				"        float a=clamp(dens*1.6,0.,1.)*edge;",
-				"        float I=pow(x,1.9)*(1.-.55*sqrt(x));",                     // emitted brightness per area
-				"        col+=trans*heat(tn)*pow(g,3.)*I*dens*6.5*a;",
-				"        trans*=1.-a*.93;",
-				"      }",
-				"    }",
-				"    p=np;",
-				"  }",
-				"  col=1.-exp(-col*1.45);col=pow(col,vec3(1.08));",
-				"  float al=clamp(max(1.-trans,max(col.r,max(col.g,col.b))),0.,1.);",
-				"  gl_FragColor=vec4(col,al);",
-				"}"
-			].join("\n");
-			var sh = function (type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null; };
-			var v0 = sh(gl.VERTEX_SHADER, vs), f0 = sh(gl.FRAGMENT_SHADER, fs);
-			if (v0 && f0) {
-				prog = gl.createProgram(); gl.attachShader(prog, v0); gl.attachShader(prog, f0); gl.linkProgram(prog);
-				if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) gl = null;
-			} else gl = null;
+		var vid = document.querySelector(".blackhole-video");
+		if (c && c.getContext) {
+			var host = c.parentNode, x = c.getContext("2d");
+			var draw = function () {
+				var r = host.getBoundingClientRect(), D = Math.min(window.devicePixelRatio || 1, 1.5), W = r.width, H = r.height;
+				c.width = Math.round(W * D); c.height = Math.round(H * D);
+				x.setTransform(D, 0, 0, D, 0, 0); x.fillStyle = "#000"; x.fillRect(0, 0, W, H);
+				var m = Math.round(W * H / 2600);
+				for (var k = 0; k < m; k++) {
+					x.fillStyle = "rgba(236,238,255," + (0.08 + Math.pow(Math.random(), 2) * 0.6).toFixed(2) + ")";
+					var sz = Math.random() < 0.07 ? 1.6 : 0.9; x.fillRect(Math.random() * W, Math.random() * H, sz, sz);
+				}
+			};
+			var rs; window.addEventListener("resize", function () { clearTimeout(rs); rs = setTimeout(draw, 150); });
+			draw();
 		}
-		if (gl) {
-			gl.useProgram(prog);
-			var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-			var ap = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
-			["uRes", "uTime", "uScale", "uIncl", "uRoll"].forEach(function (k) { U[k] = gl.getUniformLocation(prog, k); });
-			host.insertBefore(glc, c.nextSibling); host.insertBefore(glow, glc);
+		if (vid) {
+			vid.muted = true;
+			var vis = true;
+			var sync = function () {
+				if (reduceMotion || !vis || document.hidden) vid.pause();
+				else { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); }
+			};
+			vid.playbackRate = 1;
+			if ("IntersectionObserver" in window) new IntersectionObserver(function (en) { vis = en[0].isIntersecting; sync(); }).observe(vid);
+			document.addEventListener("visibilitychange", sync);
+			sync();
 		}
-		function setup() {
-			var r = host.getBoundingClientRect(), D = Math.min(window.devicePixelRatio || 1, 1.5);
-			W = r.width; H = r.height;
-			c.width = Math.round(W * D); c.height = Math.round(H * D);
-			var small = W < 760;
-			cx = small ? W * 0.5 : W * 0.69; cy = small ? H * 0.32 : H * 0.5;
-			shadow = small ? Math.min(W * 0.07, H * 0.055) : Math.min(W * 0.05, H * 0.085);   // radius of the dark disc on screen
-			pxScale = shadow / (2.6 * F / DIST);                                             // px per unit of the image plane
-			// stars and a faint warm haze, drawn once
-			x.setTransform(D, 0, 0, D, 0, 0); x.fillStyle = "#000"; x.fillRect(0, 0, W, H);
-			var m = Math.round(W * H / 2600);
-			for (var k = 0; k < m; k++) {
-				var px = Math.random() * W, py = Math.random() * H;
-				if (Math.hypot(px - cx, py - cy) < shadow * 1.6) continue;
-				x.fillStyle = "rgba(236,238,255," + (0.1 + Math.pow(Math.random(), 2) * 0.7).toFixed(2) + ")";
-				var sz = Math.random() < 0.07 ? 1.7 : 0.9; x.fillRect(px, py, sz, sz);
-			}
-			if (gl) {
-				var g = x.createRadialGradient(cx, cy, shadow, cx, cy, shadow * 7);
-				g.addColorStop(0, "rgba(255,170,90,.07)"); g.addColorStop(0.4, "rgba(255,130,60,.02)"); g.addColorStop(1, "rgba(255,120,50,0)");
-				x.fillStyle = g; x.fillRect(0, 0, W, H);
-				// the shader only covers a box around the disk
-				var hw = Math.min(W, R_OUT * F / DIST * pxScale * 1.2), hh = hw * 0.5;
-				GD = Math.min(window.devicePixelRatio || 1, hw > 330 ? 1 : 1.5);
-				glc.style.left = (cx - hw) + "px"; glc.style.top = (cy - hh) + "px"; glc.style.width = hw * 2 + "px"; glc.style.height = hh * 2 + "px";
-				glc.width = Math.round(hw * 2 * GD); glc.height = Math.round(hh * 2 * GD);
-				glow.style.left = glc.style.left; glow.style.top = glc.style.top; glow.style.width = glc.style.width; glow.style.height = glc.style.height;
-				glow.width = Math.round(hw / 2); glow.height = Math.round(hh / 2);
-				gl.viewport(0, 0, glc.width, glc.height);
-			} else {
-				// no WebGL: a plain dark disc with a bright rim
-				x.fillStyle = "#000"; x.beginPath(); x.arc(cx, cy, shadow, 0, 6.2832); x.fill();
-				x.strokeStyle = "rgba(255,214,170,.8)"; x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, shadow, 0, 6.2832); x.stroke();
-			}
-			frame(0);
-		}
-		function frame(dt) {
-			if (!gl) return;
-			time += dt * 0.3; incl += (inclTo - incl) * 0.04; roll += (rollTo - roll) * 0.04;
-			gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-			gl.uniform2f(U.uRes, glc.width, glc.height); gl.uniform1f(U.uTime, time);
-			gl.uniform1f(U.uScale, pxScale * GD); gl.uniform1f(U.uIncl, incl); gl.uniform1f(U.uRoll, roll);
-			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-			if (frames++ % 2 === 0) { gctx.clearRect(0, 0, glow.width, glow.height); gctx.drawImage(glc, 0, 0, glow.width, glow.height); }
-		}
-		function tick(t) {
-			raf = 0; if (!vis || document.hidden) return;
-			var dt = Math.min(0.05, last ? (t - last) / 1000 : 0.016); last = t;
-			frame(dt); raf = requestAnimationFrame(tick);
-		}
-		function go() { if (gl && vis && !raf && !reduceMotion) { last = 0; raf = requestAnimationFrame(tick); } }
-		host.addEventListener("pointermove", function (e) {
-			var r = host.getBoundingClientRect();
-			inclTo = 0.07 + 0.08 * Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-			rollTo = -0.08 + 0.1 * ((e.clientX - r.left) / r.width - 0.5);
-		}, { passive: true });
-		host.addEventListener("pointerleave", function () { inclTo = 0.11; rollTo = -0.08; });
-		var rs; window.addEventListener("resize", function () { clearTimeout(rs); rs = setTimeout(setup, 150); });
-		if ("IntersectionObserver" in window) new IntersectionObserver(function (en) { vis = en[0].isIntersecting; go(); }).observe(host);
-		document.addEventListener("visibilitychange", go);
-		time = 12; setup(); go();
 	})();
 
 	/* ---------- 2. Rocket engine ----------
