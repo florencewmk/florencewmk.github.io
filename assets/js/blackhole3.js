@@ -200,18 +200,24 @@ function start(texture) {
 	}, { passive: true });
 	hero.addEventListener("pointerleave", () => { azTo = 0; incTo = BASE_INC; });
 
-	let visible = true, last = 0, slowFrames = 0, raf = 0;
+	let visible = true, raf = 0, lastT = 0, avg = 0.016, counted = 0;
+	const maxQ = Math.min(window.devicePixelRatio || 1, 1.25);
 	const clock = new THREE.Clock();
 	function frame() {
 		raf = 0;
 		if (!visible || document.hidden) return;
-		const dt = Math.min(clock.getDelta(), 0.05);
+		const dt = Math.min(clock.getDelta(), 0.05);   // also advances clock.elapsedTime
 		if (!reduceMotion) uniforms.uTime.value += dt;
 		az += (azTo - az) * 0.025; inc += (incTo - inc) * 0.025;
 		updateCamera();
 		composer.render();
-		// keep it smooth: lower the resolution if frames take too long
-		if (dt > 0.03) { if (++slowFrames > 20 && quality > 0.55) { quality *= 0.85; slowFrames = 0; layout(); } } else slowFrames = 0;
+		// keep it smooth: average the frame time (ignoring pauses) and adjust the resolution both ways
+		const raw = clock.elapsedTime - lastT; lastT = clock.elapsedTime;
+		if (raw > 0 && raw < 0.2) { avg = avg * 0.95 + raw * 0.05; if (++counted >= 90) {
+			counted = 0;
+			if (avg > 0.026 && quality > 0.6) { quality = Math.max(0.6, quality * 0.85); layout(); }
+			else if (avg < 0.0145 && quality < maxQ) { quality = Math.min(maxQ, quality * 1.12); layout(); }
+		} }
 		if (!reduceMotion) raf = requestAnimationFrame(frame);
 	}
 	function go() { if (!raf) { clock.getDelta(); raf = requestAnimationFrame(frame); } }
