@@ -133,7 +133,7 @@
 			"  vec3 v=normalize(fw+rt*uv.x+up*uv.y),p=ro;",
 			"  vec3 hv=cross(p,v);float h2=dot(hv,hv);",
 			"  vec3 col=vec3(0.);float trans=1.;bool esc=false;",
-			"  float P=30.,f1=fract(uTime/P),f2=fract(uTime/P+.5),w=1.-abs(1.-2.*f1);",   // two phases cross-faded so the shear never winds up
+			"  float P=24.,f1=fract(uTime/P),f2=fract(uTime/P+.5),w=1.-abs(1.-2.*f1);",   // two phases cross-faded so the shear never winds up
 			"  for(int i=0;i<230;i++){",
 			"    float r2=dot(p,p);float r=sqrt(r2);",
 			"    if(r2<1.){trans=0.;break;}",
@@ -145,9 +145,9 @@
 			"      vec3 q=mix(p,np,p.y/(p.y-np.y));float rr=length(q.xz);",
 			"      if(rr>RIN*.96&&rr<ROUT){",
 			"        float ang=atan(q.z,q.x);",
-			"        float n=(w*turb(rr,ang,(f1*P+5.)*.9,0.)+(1.-w)*turb(rr,ang,(f2*P+5.)*.9,1.))/sqrt(w*w+(1.-w)*(1.-w));",
+			"        float n=(w*turb(rr,ang,(f1*P+5.)*1.7,0.)+(1.-w)*turb(rr,ang,(f2*P+5.)*1.7,1.))/sqrt(w*w+(1.-w)*(1.-w));",
 			"        float lane=texture2D(uTex,vec2(.5,(rr-RIN)/(ROUT-RIN))).b*.9+.35;",
-			"        float dens=lane*pow(clamp(.55+.5*n,.03,2.4),1.7);",
+			"        float dens=(.55+.45*lane)*pow(clamp(.5+.62*n,.02,2.6),2.1);",
 			"        float edge=smoothstep(RIN*.96,RIN*1.1,rr)*pow(1.-smoothstep(ROUT*.42,ROUT,rr),1.6);",
 			"        float al=clamp(dens*1.6,0.,1.)*edge;",
 			"        float beta=sqrt(.5/rr);vec3 tg=vec3(-q.z,0.,q.x)/rr;float cs=dot(tg,-normalize(v));",
@@ -192,11 +192,10 @@
 			if (W * H * D * D > 1.3e6) D = Math.sqrt(1.3e6 / (W * H));
 			c.width = Math.round(W * D); c.height = Math.round(H * D);
 			glow.width = Math.round(W / 4); glow.height = Math.round(H / 4); halo.width = Math.round(W / 8); halo.height = Math.round(H / 8);
-			var inner = host.querySelector(".about-hero-inner"), ir = inner ? inner.getBoundingClientRect() : r;
-			var rd = small ? W * 0.42 : Math.min(W * 0.21, H * 0.5);
-			// desktop: the disk ends at the right edge of the text column used by the sections below
-			var colRight = ir.right - r.left - (inner ? parseFloat(getComputedStyle(inner).paddingRight) || 0 : 0);
-			cx = small ? W * 0.5 : colRight - rd * 1.02; cy = small ? Math.min(200, H * 0.3) : (ir.top + ir.height / 2 - r.top);       // outer disk radius on screen, px
+			// the hole sits in the middle of .bh-slot, which CSS centres beside the text
+			var slot = host.querySelector(".bh-slot"), sr = slot ? slot.getBoundingClientRect() : r;
+			cx = sr.left - r.left + sr.width / 2; cy = sr.top - r.top + sr.height / 2;
+			var rd = sr.width * (small ? 0.46 : 0.5);
 			scale = rd / (13 / 40);
 			hx = cx; hy = cy; toX = cx; toY = cy;
 			gl.viewport(0, 0, c.width, c.height);

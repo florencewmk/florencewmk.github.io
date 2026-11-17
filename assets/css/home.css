@@ -734,3 +734,54 @@ ol { list-style: none; margin: 0; padding: 0; }
 		left: calc(50% + min(var(--max), 100%) / 2 - var(--gutter) - 0.92 * var(--bhw));
 	}
 }
+
+/* ---------- About: one centred column; hero = text and black hole as a centred pair ---------- */
+.page-about .about-hero { padding-left: var(--gutter); padding-right: var(--gutter); }
+.page-about .about-hero::before { background: none; }
+.page-about .about-hero-inner {
+	display: flex; align-items: center; justify-content: space-between; gap: 90px;
+	max-width: 910px; margin: 0 auto; padding: 0;
+}
+.about-text { flex: 0 1 400px; min-width: 0; }
+.bh-slot { flex: 0 0 420px; aspect-ratio: 1.3; }
+@media (max-width: 1060px) and (min-width: 761px) { .page-about .about-hero-inner { gap: 48px; } .bh-slot { flex-basis: 40vw; } }
+.about-hero .lede, .page-about .prose p, .page-about .grid-cards p { text-align: justify; -webkit-hyphens: auto; hyphens: auto; hyphenate-limit-chars: 6 3 2; }
+.page-about .section { max-width: calc(910px + 2 * var(--gutter)); }
+.page-about .prose { max-width: none; }
+@media (max-width: 760px) {
+	.page-about .about-hero { padding: 76px var(--gutter) 8px; display: block; min-height: 0; }
+	.page-about .about-hero-inner { flex-direction: column-reverse; gap: 6px; }
+	.about-text { flex: none; width: 100%; }
+	.bh-slot { flex: none; width: 100%; aspect-ratio: 1.25; }
+}
+
+/* ---------- Contact: one centred card, name and email side by side, links in one row below ---------- */
+.page-contact .page-head, .contact-layout { max-width: calc(860px + 2 * var(--gutter)); }
+.contact-layout { display: block; }
+.contact-form { padding: clamp(24px, 4vw, 44px); gap: 22px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.field textarea { min-height: 220px; }
+.form-foot { justify-content: flex-start; }
+.btn-send { display: inline-flex; align-items: center; gap: 12px; overflow: hidden; }
+.btn-send .send-icon { transition: transform .5s cubic-bezier(.3, 1.6, .5, 1); }
+.btn-send:hover .send-icon, .btn-send:focus-visible .send-icon { transform: translate(3px, -3px) rotate(-6deg); }
+.btn-send.is-sent .send-icon { animation: send-fly 1s cubic-bezier(.5, 0, .3, 1) both; }
+@keyframes send-fly {
+	0% { transform: none; opacity: 1; }
+	45% { transform: translate(40px, -28px) rotate(-12deg); opacity: 0; }
+	46% { transform: translate(-34px, 24px); opacity: 0; }
+	100% { transform: none; opacity: 1; }
+}
+.contact-side { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.contact-side .social { flex: 1 1 0; min-width: 0; padding: 14px 18px; gap: 12px; border-radius: 18px; }
+.contact-side .social svg { width: 24px; height: 24px; }
+.contact-side .social-text strong { font-size: 17px; }
+.contact-side .social-text span { display: none; }
+.contact-side .social .arrow { font-size: 17px; }
+@media (max-width: 640px) {
+	.field-row { grid-template-columns: 1fr; }
+	.contact-side .social { padding: 12px 12px; justify-content: center; }
+	.contact-side .social .arrow { display: none; }
+	.contact-side .social-text { flex: none; }
+}
+@media (prefers-reduced-motion: reduce) { .btn-send.is-sent .send-icon { animation: none; } }
