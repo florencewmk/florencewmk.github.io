@@ -1,9 +1,8 @@
 /* Florence Wong – homepage interactions
    1. Shine: a soft specular highlight follows the cursor over glass surfaces and rows
-   2. Hero: a wireframe liquid rocket engine drawn in 3D on a canvas, with a WebGL flame.
-      It assembles from an exploded view on load, then ignites; hovering the engine (tapping
-      on touch screens) separates its assemblies again. The flame throttles up while the
-      cursor moves.
+   2. Hero: a solid, shaded liquid rocket engine drawn in 3D on a canvas, with a WebGL flame.
+      It rests as an exploded drawing (no labels); hovering the engine (tapping on touch
+      screens) assembles it and fires it. The flame throttles up while the cursor moves.
    3. Scroll reveal
    4. Nav: a short spring when a link is pressed
    5. About page: a ray-traced black hole with a spinning accretion disk
@@ -227,10 +226,10 @@
 	})();
 
 	/* ---------- 2. Rocket engine ----------
-	   Wireframe of a generic liquid-propellant thrust chamber: gimbal bearing, injector with
-	   propellant dome, cylindrical combustion chamber, rounded throat and a Rao 80 % bell nozzle
-	   (30° initial and 10° exit wall angle, expansion ratio 16, contraction ratio ~3.4) with
-	   regenerative-cooling tubes. Feed system (pumps, ducts) deliberately left out.
+	   A generic liquid-propellant thrust chamber drawn as solid, shaded parts, the way a CAD
+	   exploded view shows it: gimbal mount, propellant dome, injector plate, combustion chamber
+	   with throat, and a bolted-on nozzle extension with stiffening rings. Every part is a
+	   surface of revolution cut into small faces, which are sorted and painted back to front.
 	   The flame is a WebGL shader (2D gradient fallback). */
 	var hero = document.querySelector(".hero");
 	var canvas = document.querySelector(".engine");
@@ -240,96 +239,60 @@
 	var ctx = canvas.getContext("2d");
 
 	// --- geometry (engine units, throat radius 0.12). Axis is +y (down the screen), y = 0 is the injector face.
-	var RT = 0.12, RC = 0.22, RE = 0.48;                 // throat, chamber, exit radius (Ae/At = 16)
-	var Y_CYL = 0.34, Y_T = 0.52;                       // end of cylindrical chamber, throat
-	var Y_E = Y_T + 0.8 * (RE - RT) / Math.tan(15 * Math.PI / 180); // 80 % bell length
-	var PIVOT_Y = -0.15;                                // gimbal bearing on top of the dome
-
-	var segs = []; // [x1,y1,z1, x2,y2,z2, weight, part]
-	var curPart = 2, Y_SPLIT = 1e9;                     // below Y_SPLIT the bell is a separate nozzle extension (part 3)
-	function seg(a, b, w) {
-		var part = curPart === 2 && (a[1] + b[1]) / 2 > Y_SPLIT + 1e-6 ? 3 : curPart;
-		segs.push([a[0], a[1], a[2], b[0], b[1], b[2], w || 1, part]);
+	var RE = 0.5, Y_E = 1.74;                           // nozzle exit radius and position
+	var PIVOT_Y = -0.15;
+	var NSEG = 40, COSJ = [], SINJ = [];
+	for (var jj = 0; jj <= NSEG; jj++) { COSJ.push(Math.cos(jj / NSEG * Math.PI * 2)); SINJ.push(Math.sin(jj / NSEG * Math.PI * 2)); }
+	function bellCurve(y0, r0, y1, r1, n, a0, a1) {     // quadratic Bezier between two wall angles
+		var o = [], ta = Math.tan(a0), tb = Math.tan(a1), yq = (r1 - r0 - tb * y1 + ta * y0) / (ta - tb), rq = r0 + ta * (yq - y0);
+		for (var i = 0; i <= n; i++) { var t = i / n, u = 1 - t; o.push([u * u * y0 + 2 * u * t * yq + t * t * y1, u * u * r0 + 2 * u * t * rq + t * t * r1]); }
+		return o;
 	}
-	function ring(r, y, n, w, ox, oz) {
-		ox = ox || 0; oz = oz || 0;
-		for (var i = 0; i < n; i++) {
-			var a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2;
-			seg([ox + r * Math.cos(a0), y, oz + r * Math.sin(a0)], [ox + r * Math.cos(a1), y, oz + r * Math.sin(a1)], w);
+	var PARTS = (function () {
+		var i, t, parts = [];
+		parts.push({ prof: [[-0.33, 0.001], [-0.33, 0.075], [-0.27, 0.075], [-0.27, 0.045], [-0.19, 0.045], [-0.19, 0.1], [-0.165, 0.1], [-0.165, 0.001]], edge: [1, 2, 5, 6] });   // 0 gimbal mount
+		var dome = [[-0.15, 0.05]];
+		for (i = 1; i <= 7; i++) { t = i / 7 * Math.PI / 2; dome.push([-0.15 + 0.12 * (1 - Math.cos(t)), 0.05 + 0.19 * Math.sin(t)]); }
+		dome.push([-0.03, 0.29], [-0.008, 0.29]);
+		parts.push({ prof: dome, edge: [0, 7, 8, 9] });                                                           // 1 propellant dome
+		parts.push({ prof: [[0, 0.001], [0, 0.29], [0.028, 0.29], [0.028, 0.001]], edge: [1, 2], plate: true });     // 2 injector plate
+		var ch = [[0.04, 0.29], [0.062, 0.29], [0.062, 0.228], [0.36, 0.228]];
+		for (i = 1; i <= 7; i++) { t = i / 7; ch.push([0.36 + 0.18 * t, 0.228 - (0.228 - 0.12) * (0.5 - 0.5 * Math.cos(t * Math.PI))]); }
+		var dv = bellCurve(0.54, 0.12, 0.8, 0.262, 6, 0.56, 0.42);
+		for (i = 1; i < dv.length; i++) ch.push(dv[i]);
+		ch.push([0.8, 0.305], [0.822, 0.305]);
+		parts.push({ prof: ch, edge: [0, 1, 2, 3, 10, 16, 17, 18] });                                             // 3 combustion chamber with throat
+		var nz = [[0.832, 0.305], [0.854, 0.305], [0.854, 0.268]], bl = bellCurve(0.854, 0.268, Y_E, RE, 16, 0.4, 0.17), ed = [0, 1, 2];
+		for (i = 1; i < bl.length; i++) {
+			if (i === 5 || i === 10) { var b = bl[i]; nz.push([b[0] - 0.012, b[1]], [b[0] - 0.012, b[1] + 0.016], [b[0] + 0.012, b[1] + 0.016], [b[0] + 0.012, b[1]]); ed.push(nz.length - 3, nz.length - 2); }
+			else nz.push(bl[i]);
 		}
-	}
-	// a pipe along a path: centre-line rings plus four longitudinal lines
-	function tube(path, r, w) {
-		for (var k = 0; k < 4; k++) {
-			var ang = k / 4 * Math.PI * 2, prev = null;
-			for (var i = 0; i < path.length; i++) {
-				var p = path[i], q = [p[0] + r * Math.cos(ang), p[1], p[2] + r * Math.sin(ang)];
-				if (prev) seg(prev, q, w * 0.6);
-				prev = q;
-			}
-		}
-		ring(r, path[0][1], 10, w * 0.7, path[0][0], path[0][2]);                     // flanges at the ends only
-		ring(r, path[path.length - 1][1], 10, w * 0.7, path[path.length - 1][0], path[path.length - 1][2]);
-	}
-	function bez(p0, p1, p2, t) { var u = 1 - t; return [u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0], u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1], u * u * p0[2] + 2 * u * t * p1[2] + t * t * p2[2]]; }
-	function curve(p0, p1, p2, n) { var out = []; for (var i = 0; i <= n; i++) out.push(bez(p0, p1, p2, i / n)); return out; }
-
-	(function build() {
-		/* thrust chamber contour as (y, r) points */
-		var prof = [], i, y;
-		for (y = 0; y <= Y_CYL + 1e-6; y += Y_CYL / 4) prof.push([y, RC]);
-		for (i = 1; i <= 6; i++) {                           // convergent section, rounded into the throat
-			var t = i / 6; prof.push([Y_CYL + (Y_T - Y_CYL) * t, RC - (RC - RT) * (0.5 - 0.5 * Math.cos(t * Math.PI))]);
-		}
-		var a = Math.tan(30 * Math.PI / 180), b = Math.tan(10 * Math.PI / 180);
-		var yq = (RE - RT - b * Y_E + a * Y_T) / (a - b), rq = RT + a * (yq - Y_T);
-		for (i = 1; i <= 14; i++) {                          // Rao bell: quadratic Bézier between the wall tangents
-			var s = i / 14, u = 1 - s;
-			prof.push([u * u * Y_T + 2 * u * s * yq + s * s * Y_E, u * u * RT + 2 * u * s * rq + s * s * RE]);
-		}
-
-		curPart = 2;                                         // thrust chamber with throat; the lower bell bolts on as a nozzle extension
-		var split = prof[16]; Y_SPLIT = split[0];
-		prof.forEach(function (p, k) {
-			var edge = k === 0 || k === prof.length - 1 || Math.abs(p[0] - Y_T) < 1e-6 || k === 16;
-			ring(p[1], p[0], 72, edge ? 1.15 : 0.45);
-		});
-		var M = 48;                                          // regenerative-cooling tubes
-		for (var m = 0; m < M; m++) {
-			var ang = m / M * Math.PI * 2, w = m % 4 === 0 ? 0.7 : 0.32;
-			for (var k = 1; k < prof.length; k++) {
-				var p0 = prof[k - 1], p1 = prof[k];
-				seg([p0[1] * Math.cos(ang), p0[0], p0[1] * Math.sin(ang)], [p1[1] * Math.cos(ang), p1[0], p1[1] * Math.sin(ang)], w);
-			}
-		}
-		// forward manifold under the injector
-		ring(RC + 0.03, 0.04, 60, 0.9); ring(RC + 0.03, 0.09, 60, 0.5);
-		// bolted joint between chamber and nozzle extension: one flange on each part
-		ring(split[1] + 0.014, Y_SPLIT, 72, 1.1);
-		curPart = 3; ring(split[1], Y_SPLIT + 0.004, 72, 1.15); ring(split[1] + 0.014, Y_SPLIT + 0.004, 72, 1.1);
-
-		curPart = 1;                                         // injector: face flange + LOX dome
-		ring(RC + 0.04, 0, 60, 1.1); ring(RC + 0.04, -0.02, 60, 0.7);
-		var DH = 0.1, dome = [];
-		for (i = 0; i <= 5; i++) { var rr = RC * Math.cos(i / 5 * Math.PI / 2), yy = -0.02 - DH * Math.sin(i / 5 * Math.PI / 2); dome.push([yy, rr]); if (rr > 0.01) ring(rr, yy, 48, i === 0 ? 0.9 : 0.45); }
-		for (m = 0; m < 16; m++) {
-			var da = m / 16 * Math.PI * 2;
-			for (k = 1; k < dome.length; k++) seg([dome[k - 1][1] * Math.cos(da), dome[k - 1][0], dome[k - 1][1] * Math.sin(da)], [dome[k][1] * Math.cos(da), dome[k][0], dome[k][1] * Math.sin(da)], 0.4);
-		}
-
-		curPart = 0;                                         // gimbal bearing block
-		ring(0.05, -0.12, 20, 1); ring(0.05, PIVOT_Y - 0.03, 20, 1);
-		for (m = 0; m < 6; m++) { var ga = m / 6 * Math.PI * 2; seg([0.05 * Math.cos(ga), -0.12, 0.05 * Math.sin(ga)], [0.05 * Math.cos(ga), PIVOT_Y - 0.03, 0.05 * Math.sin(ga)], 0.6); }
-		seg([-0.09, PIVOT_Y, 0], [0.09, PIVOT_Y, 0], 1); seg([0, PIVOT_Y, -0.09], [0, PIVOT_Y, 0.09], 1);
-
+		ed.push(nz.length - 1);
+		parts.push({ prof: nz, edge: ed });                                                                       // 4 nozzle extension
+		return parts;
 	})();
+	// faces: [part, yA, rA, yB, rB, segment, edgeA, edgeB]; injector orifices: [part, radius, y, angle]
+	var faces = [], holes = [];
+	PARTS.forEach(function (pt, pi) {
+		for (var k = 1; k < pt.prof.length; k++) for (var j = 0; j < NSEG; j++) {
+			faces.push([pi, pt.prof[k - 1][0], pt.prof[k - 1][1], pt.prof[k][0], pt.prof[k][1], j, pt.edge.indexOf(k - 1) >= 0, pt.edge.indexOf(k) >= 0]);
+		}
+		if (pt.plate) [0.07, 0.14, 0.21].forEach(function (r, ri) { var m = 6 + ri * 6; for (var j = 0; j < m; j++) holes.push([pi, r, -0.001, j / m * Math.PI * 2 + ri * 0.3]); });
+	});
+	var FN = faces.length, IN = FN + holes.length;
+	var fz = new Float32Array(IN), fs = new Float32Array(IN), fc = new Float32Array(IN * 8), ff = new Uint8Array(IN), order = [];
+	for (var oi = 0; oi < IN; oi++) order.push(oi);
+	var SHADES = [];
+	for (var si = 0; si < 48; si++) { var sv = si / 47; SHADES.push("rgb(" + Math.round(14 + 196 * sv) + "," + Math.round(13 + 188 * sv) + "," + Math.round(24 + 214 * sv) + ")"); }
+	var LX = -0.48, LY = -0.58, LZ = 0.66;               // light from the upper left, towards the viewer
 
-	// exploded view: separate the real assemblies (no labels)
+	// exploded view: how far each part moves along the axis
 	var OFF = [
-		[0, -0.5, 0],      // 0 gimbal bearing
-		[0, -0.3, 0],      // 1 injector + dome
-		[0, -0.06, 0],     // 2 thrust chamber with throat
-		[0, 0.3, 0]        // 3 nozzle extension
+		[0, -0.56, 0],     // 0 gimbal mount
+		[0, -0.38, 0],     // 1 propellant dome
+		[0, -0.2, 0],      // 2 injector plate
+		[0, 0, 0],         // 3 combustion chamber with throat
+		[0, 0.38, 0]       // 4 nozzle extension
 	];
 
 	// --- state
@@ -339,7 +302,7 @@
 	var throttle = 0.6, tgtThrottle = 0.6;
 	var px = -9999, py = -9999, lpx = -9999, lpy = -9999, lastMove = -1e9;
 	var visible = true, raf = 0, lastT = 0, time = 0;
-	var explode = reduceMotion ? 0 : 1, hoverEngine = false, tapExploded = false, assembledAt = 0;
+	var explode = 1, hoverEngine = false, tapExploded = false, assembledAt = 0;
 	var hudMode = document.querySelector(".hud-bl");
 
 	var wireRGB = "245,245,247";
@@ -433,8 +396,8 @@
 		DPR = Math.min(window.devicePixelRatio || 1, 1.25);
 		W = r.width; H = r.height;
 		mobile = W < 760;
-		if (mobile) { cx = W * 0.68; top = H * 0.13; scale = Math.min(W * 0.34, H * 0.18); }
-		else { cx = W * 0.71; top = H * 0.25; scale = Math.min(W * 0.19, H * 0.27); }
+		if (mobile) { cx = W * 0.68; top = H * 0.17; scale = Math.min(W * 0.29, H * 0.155); }
+		else { cx = W * 0.71; top = H * 0.26; scale = Math.min(W * 0.17, H * 0.24); }
 		// engine and flame canvases only cover a strip around the engine, not the whole hero
 		BX = Math.max(0, Math.floor(cx - 1.7 * scale)); BW = Math.min(W, Math.ceil(cx + 1.7 * scale)) - BX;
 		[canvas, flame.el].forEach(function (c) { c.style.left = BX + "px"; c.style.width = BW + "px"; });
@@ -568,8 +531,7 @@
 		};
 	})();
 
-	var BUCKETS = 10, buckets = [];
-	var pt = [0, 0, 0, 0, 0, 0], ea = [0, 0, 0], eb = [0, 0, 0];
+	var q4 = new Float32Array(12), sv0 = Math.sin(0.3), ea = [0, 0, 0], eb = [0, 0, 0];
 
 	function draw() {
 		if (!W) return;
@@ -578,7 +540,7 @@
 		ctx.clearRect(BX, 0, BW, H);
 
 		// nozzle exit and plume direction on screen
-		setPart(3);
+		setPart(4);
 		project(0, Y_E, 0, ea, 0);
 		project(0, Y_E + 1, 0, eb, 0);
 		var dl = Math.hypot(eb[0] - ea[0], eb[1] - ea[1]) || 1;
@@ -603,38 +565,63 @@
 		/* exploded view: dashed assembly axis through all parts, as on an exploded drawing */
 		if (ee > 0.03) {
 			var ax = [0, 0, 0, 0, 0, 0];
-			setPart(0); project(0, PIVOT_Y - 0.16, 0, ax, 0);
-			setPart(3); project(0, Y_E + 0.14, 0, ax, 3);
+			setPart(0); project(0, -0.45, 0, ax, 0);
+			setPart(4); project(0, Y_E + 0.12, 0, ax, 3);
 			ctx.save(); ctx.setLineDash([10, 5, 2, 5]); ctx.lineWidth = 1;
-			ctx.strokeStyle = "rgba(" + wireRGB + "," + (0.5 * ee).toFixed(3) + ")";
+			ctx.strokeStyle = "rgba(" + wireRGB + "," + (0.55 * ee).toFixed(3) + ")";
 			ctx.beginPath(); ctx.moveTo(ax[0], ax[1]); ctx.lineTo(ax[3], ax[4]); ctx.stroke(); ctx.restore();
 		}
 
-		/* wireframe */
-		var glowR2 = Math.pow(Math.max(120, scale * 0.8), 2);
-		var base = mobile ? 0.22 : 0.3;
-		for (var b = 0; b < BUCKETS; b++) buckets[b] = [];
-		for (var j = 0; j < segs.length; j++) {
-			var s = segs[j];
-			setPart(s[7]);
-			project(s[0], s[1], s[2], pt, 0);
-			project(s[3], s[4], s[5], pt, 3);
-			var mx = (pt[0] + pt[3]) / 2, my = (pt[1] + pt[4]) / 2, depth = (pt[2] + pt[5]) / 2;
-			var dx = mx - lpx, dy = my - lpy;
-			var light = Math.exp(-(dx * dx + dy * dy) / glowR2);
-			var lit = Math.max(0, (s[1] + s[4]) / 2 - (Y_E - 0.45)) * 0.6 * fire;      // nozzle lip lit by its own flame
-			var al = (base + depth * 0.2 + lit) * s[6] + light * 0.8 * Math.min(1, s[6] + 0.3);
-			al = Math.max(0.03, Math.min(1, al));
-			buckets[Math.min(BUCKETS - 1, Math.floor(al * BUCKETS))].push(pt[0], pt[1], pt[3], pt[4]);
+		/* solid parts: project every face, shade it, then paint back to front */
+		var glowR2 = Math.pow(Math.max(140, scale * 0.9), 2), dim = mobile ? 0.6 : 1, i, f, o;
+		for (i = 0; i < FN; i++) {
+			f = faces[i]; o = i * 8;
+			setPart(f[0]);
+			var j0 = f[5], j1 = j0 + 1;
+			project(f[2] * COSJ[j0], f[1], f[2] * SINJ[j0], q4, 0);
+			project(f[2] * COSJ[j1], f[1], f[2] * SINJ[j1], q4, 3);
+			project(f[4] * COSJ[j1], f[3], f[4] * SINJ[j1], q4, 6);
+			project(f[4] * COSJ[j0], f[3], f[4] * SINJ[j0], q4, 9);
+			var ux = (q4[6] - q4[0]) / sc, uy = (q4[7] - q4[1]) / sc, uz = q4[8] - q4[2];
+			var wx = (q4[3] - q4[9]) / sc, wy = (q4[4] - q4[10]) / sc, wz = q4[5] - q4[11];
+			var nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx, nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+			var front = nz > 0, d = (nx * LX + ny * LY + nz * LZ) / nl; if (!front) d = -d;
+			var sh = 0.07 + 0.88 * Math.pow(Math.max(0, d), 1.6);
+			if (!front) sh = 0.05 + sh * 0.32;
+			var mx = (q4[0] + q4[6]) / 2, my = (q4[1] + q4[7]) / 2, dx = mx - lpx, dy = my - lpy;
+			sh += Math.exp(-(dx * dx + dy * dy) / glowR2) * 0.22;                       // light from the cursor
+			if (!front && f[0] === 4) sh += Math.max(0, f[1] - (Y_E - 0.5)) * 0.9 * fire;  // inside of the bell lit by the flame
+			fz[i] = (q4[2] + q4[5] + q4[8] + q4[11]) / 4; fs[i] = Math.min(1, sh * dim);
+			ff[i] = (front ? 1 : 0) | (f[6] ? 2 : 0) | (f[7] ? 4 : 0);
+			fc[o] = q4[0]; fc[o + 1] = q4[1]; fc[o + 2] = q4[3]; fc[o + 3] = q4[4]; fc[o + 4] = q4[6]; fc[o + 5] = q4[7]; fc[o + 6] = q4[9]; fc[o + 7] = q4[10];
 		}
-		ctx.lineCap = "round"; ctx.lineWidth = 1;
-		for (var k = 0; k < BUCKETS; k++) {
-			var list = buckets[k];
-			if (!list.length) continue;
-			ctx.strokeStyle = "rgba(" + wireRGB + "," + ((k + 0.5) / BUCKETS).toFixed(3) + ")";
-			ctx.beginPath();
-			for (var m = 0; m < list.length; m += 4) { ctx.moveTo(list[m], list[m + 1]); ctx.lineTo(list[m + 2], list[m + 3]); }
-			ctx.stroke();
+		for (i = 0; i < holes.length; i++) {
+			f = holes[i]; o = (FN + i) * 8; setPart(f[0]);
+			project(f[1] * Math.cos(f[3]), f[2], f[1] * Math.sin(f[3]), q4, 0);
+			fz[FN + i] = q4[2] + 0.02; fc[o] = q4[0]; fc[o + 1] = q4[1]; ff[FN + i] = 8;
+		}
+		order.sort(function (a, b) { return fz[a] - fz[b]; });
+		ctx.lineJoin = "round"; ctx.lineCap = "round";
+		var edgeCol = "rgba(" + wireRGB + "," + (mobile ? 0.45 : 0.78) + ")";
+		for (var n = 0; n < IN; n++) {
+			i = order[n]; o = i * 8;
+			if (ff[i] & 8) {                                                           // injector orifice, only visible once the dome lifts off
+				if (ee < 0.15) continue;
+				ctx.fillStyle = "rgba(8,8,14," + Math.min(1, ee * 1.5).toFixed(2) + ")";
+				ctx.beginPath(); ctx.ellipse(fc[o], fc[o + 1], sc * 0.013, sc * 0.013 * sv0, 0, 0, 6.2832); ctx.fill();
+				continue;
+			}
+			var col = SHADES[(fs[i] * 47) | 0];
+			ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 0.8;
+			ctx.beginPath(); ctx.moveTo(fc[o], fc[o + 1]); ctx.lineTo(fc[o + 2], fc[o + 3]); ctx.lineTo(fc[o + 4], fc[o + 5]); ctx.lineTo(fc[o + 6], fc[o + 7]); ctx.closePath();
+			ctx.fill(); ctx.stroke();
+			if ((ff[i] & 1) && (ff[i] & 6)) {                                          // feature edges: flanges, rings, lips
+				ctx.strokeStyle = edgeCol; ctx.lineWidth = 1;
+				ctx.beginPath();
+				if (ff[i] & 2) { ctx.moveTo(fc[o], fc[o + 1]); ctx.lineTo(fc[o + 2], fc[o + 3]); }
+				if (ff[i] & 4) { ctx.moveTo(fc[o + 6], fc[o + 7]); ctx.lineTo(fc[o + 4], fc[o + 5]); }
+				ctx.stroke();
+			}
 		}
 	}
 
@@ -644,7 +631,7 @@
 		var dt = Math.min(0.05, lastT ? (t - lastT) / 1000 : 0.016); lastT = t; time += dt;
 		var active = t - lastMove < 1600;
 		if (!assembledAt) assembledAt = t + 600;            // start in exploded view, then assemble and ignite
-		var target = t < assembledAt ? 1 : (hoverEngine || tapExploded ? 1 : 0);
+		var target = hoverEngine || tapExploded ? 0 : 1;   // rests as an exploded drawing; hover or tap assembles it and fires
 		explode += (target - explode) * (target > explode ? 0.05 : 0.035);
 		if (hudMode) {
 			var mode = explode > 0.5 ? "Exploded view" : "Liquid rocket engine · wireframe";
@@ -652,6 +639,7 @@
 		}
 		tgtThrottle = active && !hoverEngine ? 1 : 0.6;
 		throttle += (tgtThrottle - throttle) * 0.04;
+		spin += dt * 0.2;                                    // slow turn, so the parts read as solid
 		var hold = 1 - ee;
 		gx += (tgx * hold - gx) * 0.05; gz += (tgz * hold - gz) * 0.05;
 		if (active) { lpx += (px - lpx) * 0.2; lpy += (py - lpy) * 0.2; }
@@ -670,7 +658,7 @@
 		lastMove = performance.now();
 		if (e.pointerType === "mouse") {
 			var wHalf = scale * (explode > 0.5 ? 1.0 : 0.65);
-			var y0 = top + (explode > 0.5 ? -0.6 : -0.3) * scale, y1 = top + (explode > 0.5 ? 2.5 : 1.85) * scale;
+			var y0 = top + (explode > 0.5 ? -0.9 : -0.4) * scale, y1 = top + (explode > 0.5 ? 2.4 : 1.85) * scale;
 			hoverEngine = Math.abs(px - cx) < wHalf && py > y0 && py < y1 && !(e.target.closest && e.target.closest("a, button"));
 		}
 	}, { passive: true });
