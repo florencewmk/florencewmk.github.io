@@ -121,7 +121,7 @@ function start() {
 	const PL = 16, PR = 4.0;                                     // proxy volume: length and radius
 	const plumeMat = new THREE.ShaderMaterial({
 		transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide,
-		uniforms: { uTime: { value: 0 }, uBoost: { value: 0 }, uLen: { value: 9 }, uSteps: { value: 56 } },
+		uniforms: { uTime: { value: 0 }, uBoost: { value: 0 }, uLen: { value: 9 }, uSteps: { value: 28 } },
 		vertexShader: `
 			varying vec3 vPos; varying vec3 vCam;
 			void main() {
@@ -147,7 +147,7 @@ function start() {
 				vec4 norm=tis(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
 				vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);m=m*m;
 				return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));}
-			float fbm(vec3 p){float s=0.,a=.55;for(int i=0;i<4;i++){s+=a*snoise(p);p=p*2.03+vec3(1.7,9.2,3.1);a*=.5;}return s;}
+			float fbm(vec3 p){float s=0.,a=.6;for(int i=0;i<3;i++){s+=a*snoise(p);p=p*2.03+vec3(1.7,9.2,3.1);a*=.5;}return s;}
 			float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
 
 			// gas density and colour at a point (local space: plume runs down -y from the nozzle exit)
@@ -157,13 +157,12 @@ function start() {
 				float flow = uTime * (2.2 + 3.0 * uBoost);    // gas streams away from the nozzle
 				vec3 q = vec3(p.x, p.y + flow, p.z);
 				float n = fbm(q * vec3(0.55, 0.32, 0.55));    // big billows, stretched along the flow
-				float n2 = snoise(q * 1.6 + 4.0);             // fine wisps
-				float R = mix(0.9, 2.1, pow(t, 0.8)) * (1.0 + 0.3 * n);
-				vec2 off = vec2(n, snoise(q * 0.4 + 11.0)) * (0.15 + 0.9 * t);   // the trail meanders
+								float R = mix(0.9, 2.1, pow(t, 0.8)) * (1.0 + 0.3 * n);
+				vec2 off = vec2(n, -0.6 * n) * (0.1 + 0.7 * t);   // the trail meanders
 				float r = length(p.xz - off);
-				float edge = 1.0 - smoothstep(R * 0.35, R * (1.0 + 0.25 * n2), r);
+				float edge = 1.0 - smoothstep(R * 0.35, R * (1.0 + 0.2 * n), r);
 				float along = smoothstep(1.0, 0.55, t) * (0.65 + 0.35 * smoothstep(0.0, 0.06, t));
-				float body = edge * along * clamp(0.55 + 0.9 * n + 0.25 * n2, 0.0, 1.6);
+				float body = edge * along * clamp(0.55 + 1.0 * n, 0.0, 1.6);
 				float core = exp(-r * r / 0.22) * exp(-t * (7.0 - 3.0 * uBoost));     // white-hot just behind the exit
 				vec3 hot = vec3(1.0, 0.86, 1.0), pink = vec3(1.0, 0.38, 0.92), violet = vec3(0.55, 0.32, 1.0);
 				vec3 col = mix(pink, violet, smoothstep(0.15, 0.9, t + 0.25 * n));
@@ -183,7 +182,7 @@ function start() {
 				float dt = len / float(uSteps);
 				float t = tEnter + dt * hash(gl_FragCoord.xy);
 				vec3 acc = vec3(0.0); float trans = 1.0;
-				for (int i = 0; i < 96; i++) {
+				for (int i = 0; i < 40; i++) {
 					if (i >= uSteps) break;
 					vec4 g = gas(ro + rd * t);
 					acc += trans * g.rgb * dt * 0.2;
@@ -214,7 +213,7 @@ function start() {
 	function layout() {
 		const r = hero.getBoundingClientRect(), s = slot.getBoundingClientRect();
 		W = Math.max(1, r.width); H = Math.max(1, r.height); mobile = W < 760;
-		dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.25 : 1.5);
+		dpr = 1;                                                 // keep the 3D layer at standard resolution: smooth on every machine
 		renderer.setPixelRatio(dpr); renderer.setSize(W, H, false); composer.setPixelRatio(dpr); composer.setSize(W, H);
 		camera.aspect = W / H; camera.updateProjectionMatrix();
 		pxPerUnit = H / (2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
@@ -224,7 +223,7 @@ function start() {
 		rig.position.set((sx - W / 2) / pxPerUnit, -(sy - H / 2) / pxPerUnit, 0);
 		const wantPx = mobile ? Math.min(s.width * 0.95, 300) : Math.max(190, Math.min(s.width * 1.5, H * 0.68));       // engine height on screen
 		rig.scale.setScalar(wantPx / pxPerUnit / 4.0);
-		plumeMat.uniforms.uSteps.value = mobile ? 40 : 56;
+		plumeMat.uniforms.uSteps.value = mobile ? 20 : 28;
 	}
 	layout();
 	window.addEventListener("resize", layout);
@@ -247,27 +246,31 @@ function start() {
 	const clock = new THREE.Clock();
 	let time = 0, raf = 0, visible = true, shown = false, slow = 0;
 	const baseQ = rig.quaternion.clone(), wob = new THREE.Quaternion(), e3 = new THREE.Euler();
-	function frame() {
+	let lastFrame = 0, slowFrames = 0;
+	function frame(now) {
 		raf = 0;
+		if (now && now - lastFrame < 21) { raf = requestAnimationFrame(frame); return; }   // cap at about 45 fps
+		if (lastFrame && now - lastFrame > 40) slowFrames++; else slowFrames = Math.max(0, slowFrames - 0.5);
+		lastFrame = now || performance.now();
+		if (slowFrames > 20) {                                          // struggling: drop quality a step
+			slowFrames = 0;
+			const u0 = plumeMat.uniforms.uSteps;
+			if (u0.value > 16) u0.value -= 6; else if (bloom.enabled) bloom.enabled = false;
+		}
 		const dt = Math.min(0.05, clock.getDelta());
 		time += dt;
 		boost += (boostTarget - boost) * (boostTarget > boost ? 0.06 : 0.035);
 		window.__engineBoost = boost;                            // read by the star field in home.js
 		const u = plumeMat.uniforms; u.uTime.value = time; u.uBoost.value = boost; u.uLen.value = 8 + 5 * boost;
 		// flight: gentle drift, slow roll and a fine engine vibration that grows with thrust
-		const vib = 0.004 + 0.012 * boost;
-		e3.set(Math.sin(time * 0.45) * 0.05 + (Math.random() - 0.5) * vib, time * 0.12, Math.sin(time * 0.33) * 0.04 + (Math.random() - 0.5) * vib);
+		e3.set(Math.sin(time * 0.35) * 0.035, time * 0.1, Math.sin(time * 0.27) * 0.03);   // slow, smooth drift and roll (no shaking)
 		wob.setFromEuler(e3); rig.quaternion.copy(baseQ).multiply(wob);
-		engine.position.set((Math.random() - 0.5) * vib * 2, (Math.random() - 0.5) * vib * 2 - boost * 0.25, 0);
-		const flick = 0.85 + 0.15 * Math.sin(time * 37) * Math.sin(time * 23) + 0.1 * Math.random();
+		engine.position.set(0, -boost * 0.2, 0);
+		const flick = 0.93 + 0.07 * Math.sin(time * 9.0) * Math.sin(time * 5.3);
 		exhaustLight.intensity = (8 + 10 * boost) * flick; bellLight.intensity = (5 + 6 * boost) * flick;
 		throatGlow.material.opacity = 0.9 + 0.1 * flick; exitGlow.material.opacity = (0.35 + 0.25 * boost) * flick;
 		bloom.strength = 0.5 + 0.25 * boost;
-		const t0 = performance.now();
 		composer.render();
-		// adaptive quality: fewer march steps on slow machines
-		const ms = performance.now() - t0; slow = slow * 0.95 + (ms > 22 ? 1 : 0) * 0.05;
-		if (slow > 0.6 && u.uSteps.value > 28) { u.uSteps.value -= 8; slow = 0; }
 		if (!shown) { shown = true; hero.classList.add("engine-live"); }
 		if (!reduceMotion && visible && !document.hidden) raf = requestAnimationFrame(frame);
 	}
