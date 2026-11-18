@@ -876,3 +876,20 @@ ol { list-style: none; margin: 0; padding: 0; }
 .engine3d { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; mix-blend-mode: screen; }
 .hero.engine-live .engine-video { visibility: hidden; }
 .hero.engine-hover { cursor: pointer; }
+
+
+/* Homepage: "Get in touch" is the last section of the homepage (the separate contact page was removed) */
+.home .footer { position: static; max-width: var(--max); border-top: 1px solid var(--line); padding-bottom: 36px; }
+.home-contact { padding-top: clamp(40px, 6vw, 80px); padding-bottom: clamp(70px, 10vw, 120px); scroll-margin-top: 90px; }
+.home-contact h2 { font-size: clamp(34px, 4vw, 52px); margin-bottom: 14px; }
+.home-contact .lede { max-width: none; margin-bottom: 32px; color: #f0eef7; }
+.home-contact .contact-side { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 0; }
+.home-contact .contact-side .social { flex: none; padding: 24px; gap: 16px; border-radius: 22px; justify-content: flex-start; }
+.home-contact .contact-side .social svg { width: 30px; height: 30px; }
+.home-contact .contact-side .social-text { flex: 1; }
+.home-contact .contact-side .social-text strong { font-size: 20px; }
+.home-contact .contact-side .social-text span { display: block; font-size: 15.5px; color: #e6e4f0; }
+.home-contact .contact-side .social .arrow { display: inline; font-size: 20px; }
+@media (max-width: 860px) { .home-contact .contact-side { grid-template-columns: 1fr; } }
+/* the exhaust plume fades out at the bottom of the hero instead of ending in a hard line above "Get in touch" */
+.home .engine3d { -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); }
