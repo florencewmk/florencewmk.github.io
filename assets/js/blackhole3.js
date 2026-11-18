@@ -245,6 +245,83 @@ function start(texture) {
 }
 
 
+/* Constellations with real star positions (J2000 right ascension and declination in degrees,
+   visual magnitude). Each is projected onto a small patch of sky the way it looks from Earth,
+   then placed at a fixed spot on the screen, away from the text. Faint lines join the figure. */
+const FIGURES = [
+	{ name: "Big Dipper", at: [-0.8, 0.66], size: 0.12, stars: [
+		[165.93, 61.75, 1.8], [165.46, 56.38, 2.4], [178.46, 53.69, 2.4], [183.86, 57.03, 3.3],
+		[193.51, 55.96, 1.8], [200.98, 54.93, 2.2], [206.89, 49.31, 1.9]],
+	  lines: [[0, 1], [1, 2], [2, 3], [3, 0], [3, 4], [4, 5], [5, 6]] },
+	{ name: "Cassiopeia", at: [0.62, 0.74], size: 0.08, stars: [
+		[2.29, 59.15, 2.3], [10.13, 56.54, 2.2], [14.18, 60.72, 2.2], [21.45, 60.24, 2.7], [28.60, 63.67, 3.4]],
+	  lines: [[0, 1], [1, 2], [2, 3], [3, 4]] },
+	{ name: "Orion", at: [-0.84, -0.5], size: 0.14, stars: [
+		[88.79, 7.41, 0.5, 1], [78.63, -8.20, 0.1, 2], [81.28, 6.35, 1.6], [86.94, -9.67, 2.1],
+		[85.19, -1.94, 1.8], [84.05, -1.20, 1.7], [83.00, -0.30, 2.2], [83.78, 9.93, 3.4]],
+	  lines: [[7, 0], [7, 2], [0, 4], [2, 6], [6, 5], [5, 4], [4, 3], [6, 1]] },
+	{ name: "Scorpius", at: [0.84, -0.48], size: 0.15, stars: [
+		[241.36, -19.81, 2.6], [240.08, -22.62, 2.3], [239.71, -26.11, 2.9], [245.30, -25.59, 2.9],
+		[247.35, -26.43, 1.0, 1], [248.97, -28.22, 2.8], [252.54, -34.29, 2.3], [252.97, -38.05, 3.0],
+		[254.66, -42.36, 3.6], [258.04, -43.24, 3.3], [264.33, -43.00, 1.9], [266.90, -40.13, 3.0],
+		[265.62, -39.03, 2.4], [263.40, -37.10, 1.6], [262.69, -37.30, 2.7]],
+	  lines: [[0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 14]] },
+	{ name: "Southern Cross", at: [0.5, -0.86], size: 0.06, stars: [
+		[186.65, -63.10, 0.8, 2], [191.93, -59.69, 1.3, 2], [187.79, -57.11, 1.6, 1], [183.79, -58.75, 2.8], [185.34, -60.40, 3.6]],
+	  lines: [[2, 0], [1, 3]] },
+];
+function constellations(starMat) {
+	const D = Math.PI / 180, group = new THREE.Group(), items = [];
+	const lineMat = new THREE.LineBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false });
+	const tints = [[1, .97, .92], [1, .72, .45], [.78, .86, 1]];       // white, orange (Betelgeuse, Antares), blue-white
+	for (const f of FIGURES) {
+		// centre of the figure, then a gnomonic projection (seen from inside the sky, so east is left)
+		let sx = 0, sy = 0, sz = 0;
+		for (const [ra, de] of f.stars) { sx += Math.cos(de * D) * Math.cos(ra * D); sy += Math.cos(de * D) * Math.sin(ra * D); sz += Math.sin(de * D); }
+		const a0 = Math.atan2(sy, sx), d0 = Math.atan2(sz, Math.hypot(sx, sy));
+		const xy = f.stars.map(([ra, de]) => {
+			const a = ra * D - a0, d = de * D;
+			const c = Math.sin(d0) * Math.sin(d) + Math.cos(d0) * Math.cos(d) * Math.cos(a);
+			return [-Math.cos(d) * Math.sin(a) / c, (Math.cos(d0) * Math.sin(d) - Math.sin(d0) * Math.cos(d) * Math.cos(a)) / c];
+		});
+		const ext = Math.max(...xy.map(([x, y]) => Math.max(Math.abs(x), Math.abs(y))));
+		const n = f.stars.length, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), ph = new Float32Array(n);
+		xy.forEach(([x, y], i) => {
+			pos.set([x / ext, y / ext, 0], i * 3);
+			const mag = f.stars[i][2], t = tints[f.stars[i][3] || 0], b = Math.min(1, 0.55 + (3.6 - mag) * 0.16);
+			col.set([t[0] * b, t[1] * b, t[2] * b], i * 3);
+			size[i] = 2.4 + (3.6 - mag) * 0.95;
+			ph[i] = Math.random() * 100;
+		});
+		const g = new THREE.BufferGeometry();
+		g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+		g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+		g.setAttribute("size", new THREE.BufferAttribute(size, 1));
+		g.setAttribute("phase", new THREE.BufferAttribute(ph, 1));
+		const lp = new Float32Array(f.lines.length * 6);
+		f.lines.forEach(([i, j], k) => { lp.set([pos[i * 3], pos[i * 3 + 1], 0, pos[j * 3], pos[j * 3 + 1], 0], k * 6); });
+		const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(lp, 3));
+		const fig = new THREE.Group();
+		fig.add(new THREE.LineSegments(lg, lineMat));
+		fig.add(new THREE.Points(g, starMat));
+		group.add(fig);
+		items.push({ fig, f });
+	}
+	// put each figure at its screen spot (fractions of the half-width/height) at distance 100
+	function place(cam) {
+		const ty = Math.tan(cam.fov * D / 2), tx = ty * cam.aspect, R = 100, portrait = cam.aspect < 1;
+		for (const { fig, f } of items) {
+			const fx = f.at[0] * (portrait ? 0.8 : 1), fy = f.at[1] * (portrait ? 0.9 : 1);
+			const dir = new THREE.Vector3(fx * tx, fy * ty, -1).normalize();
+			fig.position.copy(dir).multiplyScalar(R);
+			fig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().negate());
+			const s = f.size * R * ty * (portrait ? 1.25 : 1);
+			fig.scale.set(s, s, s);
+		}
+	}
+	return { group, place };
+}
+
 /* Page-wide star field, fixed behind the whole page. Points spread through a thick shell around
    the viewer (like a planetarium), soft round sprites with size attenuation, a few warm and blue
    tints, gentle twinkle, a very slow turn of the sky and a little parallax with the pointer. */
@@ -265,9 +342,9 @@ function starField() {
 		const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, rr = 80 + Math.random() * 120, q = Math.sqrt(1 - u * u);
 		pos.set([q * Math.cos(a) * rr, u * rr, q * Math.sin(a) * rr], i * 3);
 		const t = tint[Math.random() < .7 ? 0 : 1 + Math.floor(Math.random() * 4)];
-		const b = 0.35 + 0.65 * Math.pow(Math.random(), 3);
+		const b = 0.5 + 0.5 * Math.pow(Math.random(), 2.4);
 		col.set([t[0] * b, t[1] * b, t[2] * b], i * 3);
-		size[i] = Math.random() < 0.012 ? 3.4 + Math.random() * 2 : 0.9 + Math.pow(Math.random(), 2.5) * 2.2;
+		size[i] = Math.random() < 0.015 ? 3.6 + Math.random() * 2 : 1.1 + Math.pow(Math.random(), 2.3) * 2.4;
 		ph[i] = Math.random() * 100;
 	}
 	const g = new THREE.BufferGeometry();
@@ -285,22 +362,26 @@ function starField() {
 				vA = .72 + .28 * sin(uTime * (.6 + fract(phase) * 1.6) + phase); vC = color; }`,
 		fragmentShader: `varying vec3 vC; varying float vA;
 			void main(){ vec2 d = gl_PointCoord - .5; float r = length(d); float a = smoothstep(.5, .0, r); a *= a;
-				gl_FragColor = vec4(vC * a * vA * 1.4, 1.); }`,
+				gl_FragColor = vec4(vC * a * vA * 1.9, 1.); }`,
 	});
 	const pts = new THREE.Points(g, m);
-	scene.add(pts);
+	const sky = new THREE.Group();
+	sky.add(pts);
+	scene.add(sky);
+	const figures = constellations(m);
+	sky.add(figures.group);
 	let mx = 0, my = 0, tx = 0, ty = 0;
 	window.addEventListener("pointermove", (e) => { tx = (e.clientX / window.innerWidth - .5); ty = (e.clientY / window.innerHeight - .5); }, { passive: true });
-	function size_() { const w = window.innerWidth, h = window.innerHeight; r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); m.uniforms.uH.value = h; }
+	function size_() { const w = window.innerWidth, h = window.innerHeight; r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); m.uniforms.uH.value = h; figures.place(cam); }
 	size_(); window.addEventListener("resize", size_);
 	const clk = new THREE.Clock();
 	let raf = 0;
 	function loop() {
 		raf = 0; if (document.hidden) return;
 		const dt = Math.min(clk.getDelta(), .05);
-		if (!reduceMotion) { m.uniforms.uTime.value += dt; pts.rotation.y += dt * .004; pts.rotation.x += dt * .0012; }
+		if (!reduceMotion) { const t = (m.uniforms.uTime.value += dt); sky.rotation.y = Math.sin(t * .021) * .035; sky.rotation.x = Math.sin(t * .017) * .02; }
 		mx += (tx - mx) * .03; my += (ty - my) * .03;
-		cam.rotation.set(-my * .06, -mx * .08, 0);
+		cam.rotation.set(-my * .05, -mx * .06, 0);
 		r.render(scene, cam);
 		if (!reduceMotion) raf = requestAnimationFrame(loop);
 	}
