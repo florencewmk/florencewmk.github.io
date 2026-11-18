@@ -897,18 +897,20 @@ ol { list-style: none; margin: 0; padding: 0; }
 .home-contact .contact-side .social .arrow { display: inline; font-size: 20px; }
 @media (max-width: 860px) { .home-contact .contact-side { grid-template-columns: 1fr; } }
 
-/* Homepage first screen: a little shorter than the window so the top of "Get in touch" peeks in at the bottom.
-   Text and engine share the same content column as "Get in touch" (same left and right edges);
-   the engine keeps its original size (its column width sets the size, see engine3d.js). */
-.home .hero { min-height: max(520px, calc(100svh - 110px)); padding-top: 104px; padding-bottom: 24px; }
-.home-contact { padding-top: 40px; }
+/* Homepage: one star field behind the whole page. "Get in touch" sits inside the hero, so the stars,
+   the engine and its full plume run behind it too; the footer lies over the bottom of the star field.
+   The intro block is a little shorter than the window so the top of "Get in touch" peeks in.
+   Text and engine share the content column of "Get in touch"; the engine keeps its original size. */
+.home .hero { display: block; min-height: 0; padding: 0 0 96px; }
+.home .hero-inner { width: calc(100% - 2 * var(--gutter)); min-height: max(400px, calc(100svh - 110px)); padding: 104px 0 24px; }
+.home-contact { position: relative; z-index: 3; padding-top: 40px; padding-bottom: 0; }
+.home .footer { position: relative; z-index: 4; margin-top: -78px; }
 @media (min-width: 760px) {
 	.home .hero-inner { max-width: calc(var(--max) - 2 * var(--gutter)); margin: 0 auto; grid-template-columns: minmax(0, 1fr) clamp(176px, 15.85vw, 276px); column-gap: clamp(60px, 7vw, 120px); justify-content: stretch; }
 	.home .engine-slot { position: relative; height: 340px; top: clamp(114px, 10.3vw, 179px); }
 	.home .engine-video { position: absolute; top: 50%; left: 50%; margin: 0; transform: translate(-50%, -50%); }
 	.home .hero .lede { max-width: none; }
 }
-/* the exhaust plume fades out at the bottom of the hero instead of ending in a hard line above "Get in touch" */
-.home .engine3d { -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); }
 /* contact cards: always shown (the scroll fade-in could leave them hidden near the bottom edge) */
 .home-contact .reveal { opacity: 1 !important; transform: none !important; }
+@media (max-width: 760px) { .home .hero::before { background-size: 100% 100svh; background-repeat: no-repeat; } }  /* phone: text shade only on the first screen, stars stay bright behind "Get in touch" */
