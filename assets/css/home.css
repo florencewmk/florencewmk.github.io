@@ -850,12 +850,12 @@ ol { list-style: none; margin: 0; padding: 0; }
 .row-logo { display: flex; align-items: center; justify-content: center; width: 170px; height: 60px; margin-top: 14px; transition: transform .3s var(--ease), filter .3s var(--ease); }
 .row-logo img { display: block; width: auto; max-width: 170px; object-fit: contain; }
 /* heights tuned per logo so they look about the same size */
-.row-logo .logo-tu-berlin { height: 54px; }
+.row-logo .logo-tu-berlin { height: 40px; }
 .row-logo .logo-tsinghua { height: 42px; }
 .row-logo .logo-siemens-energy { height: 36px; }
 .row-logo .logo-mercedes-benz { height: 35px; }
 .row-logo:hover { transform: translateY(-2px); filter: drop-shadow(0 0 10px rgba(var(--glass-purple), .55)); }
-@media (max-width: 760px) { .row-logo { width: 150px; height: 54px; margin-top: 10px; } .row-logo img { max-width: 150px; } .row-logo .logo-tu-berlin { height: 48px; } .row-logo .logo-tsinghua { height: 37px; } .row-logo .logo-siemens-energy { height: 32px; } .row-logo .logo-mercedes-benz { height: 31px; } }
+@media (max-width: 760px) { .row-logo { width: 150px; height: 54px; margin-top: 10px; } .row-logo img { max-width: 150px; } .row-logo .logo-tu-berlin { height: 35px; } .row-logo .logo-tsinghua { height: 37px; } .row-logo .logo-siemens-energy { height: 32px; } .row-logo .logo-mercedes-benz { height: 31px; } }
 
 /* Contact: no form, just three link cards (Email, LinkedIn, GitHub), larger, with the address under each name */
 .page-contact .contact-side { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 0; }
