@@ -27,66 +27,47 @@
 		if (shineTarget && !shinePending) { shinePending = true; requestAnimationFrame(applyShine); }
 	}, { passive: true });
 
-	/* ---------- 4. Nav: one lit pill that slides to the page you pick ----------
-	   The pill is a single element behind the links. On a click it glides (with a slight
-	   stretch) to the clicked link, then the page changes. Arriving with Back/Forward, it
-	   glides over from the page you came from. */
+	/* ---------- 4. Nav: the lit pill glides to the new page as it opens ----------
+	   The pill is a plain element inside the current page's link (in the HTML), so it is in
+	   place the instant a page draws. Chrome, Edge and Safari slide it from the old link to the
+	   new one while the pages swap (cross-document view transitions, set up in home.css).
+	   Other browsers get the same glide on arrival, from the link you came from. */
 	(function () {
 		var ul = document.querySelector(".nav ul");
 		if (!ul) return;
 		var links = Array.prototype.slice.call(ul.querySelectorAll("li a"));
-		var nav = ul.closest(".nav");
-		var pill = document.createElement("span");
-		pill.className = "nav-pill"; pill.setAttribute("aria-hidden", "true");
-		ul.insertBefore(pill, ul.firstChild);
-		var KEY = "navPillFrom", CLICK = "navPillClick";
-		function activeIndex() { for (var i = 0; i < links.length; i++) if (links[i].classList.contains("is-active")) return i; return -1; }
-		var home = activeIndex();
-		function place(i, animate) {
-			var a = links[i];
-			if (!a) { pill.style.opacity = "0"; return; }
-			if (!animate) pill.classList.add("no-anim");
-			pill.style.opacity = "1";
-			pill.style.width = a.offsetWidth + "px";
-			pill.style.height = a.offsetHeight + "px";
-			var li = a.parentNode;
-			pill.style.transform = "translate3d(" + (li.offsetLeft + a.offsetLeft) + "px," + (li.offsetTop + a.offsetTop) + "px,0)";
-			if (!animate) { void pill.offsetWidth; pill.classList.remove("no-anim"); }
-		}
-		function setActive(i) {
-			links.forEach(function (a, j) { a.classList.toggle("is-active", j === i); });
-		}
+		var KEY = "navPillFrom";
+		var here = -1;
+		links.forEach(function (a, i) { if (a.classList.contains("is-active")) here = i; });
 		var store = {
-			get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
-			set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
-			del: function (k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+			get: function () { try { return sessionStorage.getItem(KEY); } catch (e) { return null; } },
+			set: function (v) { try { sessionStorage.setItem(KEY, v); } catch (e) {} }
 		};
-		function arrive() {
-			setActive(home);
-			var from = parseInt(store.get(KEY), 10), clicked = store.get(CLICK) === "1";
-			store.del(CLICK);
-			if (!reduceMotion && !clicked && !isNaN(from) && from !== home && links[from]) {
-				place(from, false);
-				requestAnimationFrame(function () { requestAnimationFrame(function () { place(home, true); }); });
-			} else place(home, false);
-			store.set(KEY, String(home));
+		var native = "onpagereveal" in window && window.CSS && CSS.supports && CSS.supports("view-transition-name: a");
+		var from = parseInt(store.get(), 10);
+		store.set(String(here));
+		var pill = ul.querySelector(".nav-pill");
+		if (!native && !reduceMotion && pill && !isNaN(from) && from !== here && links[from] && pill.animate) {
+			var A = links[here], F = links[from];
+			var dx = (F.parentNode.offsetLeft + F.offsetLeft) - (A.parentNode.offsetLeft + A.offsetLeft);
+			pill.animate([
+				{ transform: "translateX(" + dx + "px)", width: (F.offsetWidth + 2) + "px" },
+				{ transform: "none", width: (A.offsetWidth + 2) + "px" }
+			], { duration: 450, easing: "cubic-bezier(.45, 1.3, .5, 1)" });
 		}
-		nav.classList.add("has-pill");
-		arrive();
-		if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { place(activeIndex(), false); });
-		if ("ResizeObserver" in window) new ResizeObserver(function () { place(activeIndex(), false); }).observe(ul);
-		else window.addEventListener("resize", function () { place(activeIndex(), false); });
-
 		links.forEach(function (a, i) {
 			a.addEventListener("click", function (e) {
-				if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === "_blank") return;
-				store.set(KEY, String(i)); store.set(CLICK, "1");
-				if (reduceMotion) return;
-				if (i === activeIndex()) { e.preventDefault(); a.classList.remove("spring"); void a.offsetWidth; a.classList.add("spring"); return; }
-				/* slide and load at the same time: the browser keeps this page (and the slide) on
-				   screen until the next page is ready, so nobody waits for the animation */
-				setActive(i); place(i, true);
+				if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+				if (i === here && !reduceMotion) { e.preventDefault(); a.classList.remove("spring"); void a.offsetWidth; a.classList.add("spring"); }
 			});
+		});
+		window.addEventListener("pageshow", function (e) {
+			links.forEach(function (a) { a.classList.remove("spring"); });
+			if (e.persisted) store.set(String(here));
+		});
+		/* arriving through the glide: skip the title's own entrance so the page is simply there */
+		window.addEventListener("pagereveal", function (e) {
+			if (e.viewTransition) document.documentElement.classList.add("vt-arrive");
 		});
 
 		/* start loading a page as soon as the pointer rests on (or a finger touches) its link */
@@ -101,7 +82,6 @@
 				document.head.appendChild(sr);
 			} else {
 				var l = document.createElement("link"); l.rel = "prefetch"; l.href = url; document.head.appendChild(l);
-				try { fetch(url, { credentials: "same-origin" }).catch(function () {}); } catch (err) {}
 			}
 		}
 		links.forEach(function (a) {
@@ -110,11 +90,6 @@
 			a.addEventListener("pointerleave", function () { clearTimeout(t); });
 			a.addEventListener("touchstart", function () { warm(a); }, { passive: true });
 			a.addEventListener("focus", function () { warm(a); });
-		});
-		/* coming back from the browser cache: put the pill back on this page's link */
-		window.addEventListener("pageshow", function (e) {
-			links.forEach(function (a) { a.classList.remove("spring"); });
-			if (e.persisted) { store.del(CLICK); arrive(); }
 		});
 	})();
 

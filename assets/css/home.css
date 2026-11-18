@@ -915,21 +915,28 @@ ol { list-style: none; margin: 0; padding: 0; }
 .home-contact .reveal { opacity: 1 !important; transform: none !important; }
 @media (max-width: 760px) { .home .hero::before { background-size: 100% 100svh; background-repeat: no-repeat; } }  /* phone: text shade only on the first screen, stars stay bright behind "Get in touch" */
 
-/* nav: the lit pill is one element that slides between links (see home.js, section 4) */
-.nav ul { position: relative; }
-.nav li { position: relative; z-index: 1; }
+/* nav: the lit pill lives inside the current page's link and glides to the next page's link
+   while the pages swap (cross-document view transition; see home.js, section 4) */
+@view-transition { navigation: auto; }
+.nav li a { position: relative; isolation: isolate; }
+.nav li a.is-active { background: transparent; border-color: transparent; box-shadow: none; }
 .nav-pill {
-	position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 0; opacity: 0; pointer-events: none;
-	border-radius: 999px; border: 1px solid rgba(214, 200, 255, .5);
+	position: absolute; inset: -1px; z-index: -1; pointer-events: none; border-radius: 999px;
+	border: 1px solid rgba(214, 200, 255, .5);
 	background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 60%), rgba(var(--glass-purple), .32);
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 0 26px -6px rgba(var(--glass-purple), 1);
-	transition: transform .42s cubic-bezier(.45, 1.3, .5, 1), width .42s cubic-bezier(.45, 1.3, .5, 1), height .42s ease, opacity .2s;
-	will-change: transform, width;
+	view-transition-name: nav-pill;
 }
-.nav-pill.no-anim { transition: none; }
-.nav.has-pill li a.is-active { background: transparent; border-color: transparent; box-shadow: none; }
-.nav.has-pill li a.is-active:hover { background-color: rgba(var(--glass-purple), .12); }
-@media (prefers-reduced-motion: reduce) { .nav-pill { transition: none; } }
+.nav { view-transition-name: site-nav; }
+::view-transition-group(nav-pill) { animation-duration: .45s; animation-timing-function: cubic-bezier(.45, 1.3, .5, 1); }
+::view-transition-image-pair(nav-pill) { mix-blend-mode: screen; }
+::view-transition-old(nav-pill), ::view-transition-new(nav-pill) { animation: none; }
+::view-transition-old(nav-pill) { display: none; }
+::view-transition-new(nav-pill) { height: 100%; width: 100%; }
+::view-transition-group(site-nav) { animation-duration: .45s; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .22s; }
+.vt-arrive .page-head > * { animation: none; }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
 
 /* page opening: quicker, so a new page feels instant (title .5s, reveals .75s) */
 .page-head > * { animation-duration: .5s; }
@@ -975,3 +982,5 @@ ol { list-style: none; margin: 0; padding: 0; }
 	.page .row-main strong, .page-projects .rows-compact .row-main strong,
 	.page .grid-cards h3, .hobby h3, .posts-title { font-size: 21px; }
 }
+.nav li a .nav-pill { width: auto; height: auto; overflow: visible; clip-path: none; }
+.vt-arrive .home .nav, .home.vt-arrive .nav { animation: nav-breathe 5s 1.4s ease-in-out infinite; }
