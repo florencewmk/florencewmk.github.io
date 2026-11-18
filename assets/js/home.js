@@ -82,11 +82,34 @@
 				if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === "_blank") return;
 				store.set(KEY, String(i)); store.set(CLICK, "1");
 				if (reduceMotion) return;
-				e.preventDefault();
-				if (i === activeIndex()) { a.classList.remove("spring"); void a.offsetWidth; a.classList.add("spring"); }
+				if (i === activeIndex()) { e.preventDefault(); a.classList.remove("spring"); void a.offsetWidth; a.classList.add("spring"); return; }
+				/* slide and load at the same time: the browser keeps this page (and the slide) on
+				   screen until the next page is ready, so nobody waits for the animation */
 				setActive(i); place(i, true);
-				setTimeout(function () { window.location.href = a.href; }, 420);
 			});
+		});
+
+		/* start loading a page as soon as the pointer rests on (or a finger touches) its link */
+		var warmed = {};
+		function warm(a) {
+			var url = a.href;
+			if (warmed[url] || a.classList.contains("is-active")) return;
+			warmed[url] = true;
+			if (HTMLScriptElement.supports && HTMLScriptElement.supports("speculationrules")) {
+				var sr = document.createElement("script"); sr.type = "speculationrules";
+				sr.textContent = JSON.stringify({ prerender: [{ source: "list", urls: [url] }] });
+				document.head.appendChild(sr);
+			} else {
+				var l = document.createElement("link"); l.rel = "prefetch"; l.href = url; document.head.appendChild(l);
+				try { fetch(url, { credentials: "same-origin" }).catch(function () {}); } catch (err) {}
+			}
+		}
+		links.forEach(function (a) {
+			var t;
+			a.addEventListener("pointerenter", function () { t = setTimeout(function () { warm(a); }, 60); });
+			a.addEventListener("pointerleave", function () { clearTimeout(t); });
+			a.addEventListener("touchstart", function () { warm(a); }, { passive: true });
+			a.addEventListener("focus", function () { warm(a); });
 		});
 		/* coming back from the browser cache: put the pill back on this page's link */
 		window.addEventListener("pageshow", function (e) {
