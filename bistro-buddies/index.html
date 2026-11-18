@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Bistro Buddies</title>
+<meta name="description" content="A cozy isometric restaurant sim with animal customers and staff bots that run on their own.">
+<style>
+  :root{--ink:#4a3b35;--paper:#fffaf2;--accent:#ff8a65;--mint:#7fcfae;--gold:#f2b705;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif;color:var(--ink);background:#bfe6dc;-webkit-user-select:none;user-select:none}
+  canvas{display:block;touch-action:none}
+  #top{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:98vw}
+  .pill{background:var(--paper);border-radius:999px;padding:6px 12px;box-shadow:0 3px 0 rgba(74,59,53,.18);font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .logo{background:var(--accent);color:#fff}
+  .bar{width:70px;height:8px;border-radius:6px;background:#eadfd2;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--gold);border-radius:6px}
+  .bar.pop>i{background:#ff6f91}
+  #speed button{border:0;background:transparent;font:inherit;cursor:pointer;padding:0 4px;border-radius:8px;color:var(--ink)}
+  #speed button.on{background:var(--mint);color:#fff}
+  #status{position:fixed;top:56px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:700;background:rgba(255,250,242,.9);padding:4px 12px;border-radius:999px;display:none}
+  #bottom{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:10px}
+  .btn{border:0;cursor:pointer;font:inherit;font-weight:800;font-size:15px;background:var(--paper);color:var(--ink);padding:10px 16px;border-radius:16px;box-shadow:0 4px 0 rgba(74,59,53,.22);transition:transform .08s}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(74,59,53,.22)}
+  .btn.on{background:var(--accent);color:#fff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  #panel{position:fixed;right:12px;top:70px;bottom:76px;width:330px;max-width:calc(100vw - 24px);background:var(--paper);border-radius:20px;box-shadow:0 6px 0 rgba(74,59,53,.2),0 10px 30px rgba(0,0,0,.12);padding:14px;overflow:auto;display:none}
+  #panel.show{display:block}
+  #panel h2{margin:0 0 4px;font-size:20px}
+  #panel .sub{font-size:12px;opacity:.7;margin-bottom:10px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .card{background:#fff;border-radius:14px;padding:8px;text-align:center;cursor:pointer;border:2px solid transparent;font-size:12px;font-weight:700}
+  .card .ic{font-size:26px;display:block}
+  .card.sel{border-color:var(--accent)}
+  .card.lock{opacity:.4;cursor:not-allowed}
+  .row{display:flex;align-items:center;gap:8px;background:#fff;border-radius:14px;padding:8px 10px;margin-bottom:8px;font-size:13px}
+  .row .ic{font-size:24px}
+  .row .grow{flex:1;min-width:0}
+  .row b{display:block}
+  .small{font-size:11px;opacity:.75}
+  .mini{border:0;cursor:pointer;font:inherit;font-weight:800;font-size:12px;border-radius:10px;padding:6px 8px;background:var(--mint);color:#fff}
+  .mini.gray{background:#d9cfc4;color:var(--ink)}
+  .mini:disabled{opacity:.4;cursor:not-allowed}
+  .ebar{height:6px;background:#eadfd2;border-radius:4px;overflow:hidden;margin-top:3px}
+  .ebar>i{display:block;height:100%;background:#7fcfae}
+  #toast{position:fixed;left:50%;top:90px;transform:translateX(-50%);background:#4a3b35;color:#fff;padding:9px 16px;border-radius:14px;font-weight:700;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:90vw}
+  #toast.show{opacity:1}
+  h3{font-size:14px;margin:14px 0 6px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="top">
+  <div class="pill logo">🍽️ Bistro Buddies</div>
+  <div class="pill" title="Coins">🪙 <span id="coins">0</span></div>
+  <div class="pill" title="Level">⭐ Lv <span id="lvl">1</span><div class="bar"><i id="xpbar"></i></div></div>
+  <div class="pill" title="Popularity">❤️<div class="bar pop"><i id="popbar"></i></div><span id="pop">0</span>%</div>
+  <div class="pill" title="Time">🕐 <span id="clock">08:00</span></div>
+  <div class="pill" id="speed"><button data-s="0">⏸</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="3">3×</button></div>
+</div>
+<div id="status"></div>
+<div id="bottom">
+  <button class="btn" data-panel="build">🛠️ Build</button>
+  <button class="btn" data-panel="staff">🧑‍🍳 Staff</button>
+  <button class="btn" data-panel="menu">📜 Menu</button>
+  <button class="btn" id="coffee">☕ Coffee</button>
+</div>
+<div id="panel"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* =========================================================
+   Bistro Buddies: an original, cozy isometric restaurant sim.
+   Customers and staff are bots driven by small state machines.
+   ========================================================= */
+
+// ---------- constants ----------
+const COLS = 12, ROWS = 10, TW = 64, TH = 32, WALL = 92;
+const DOOR = { x: 9, y: 0 };
+const NO_BUILD = new Set(["9,0", "9,1"]);           // keep the entrance clear
+const HOME = { chef: [2, 4], waiter: [3, 1], cleaner: [10, 5] };
+const SAVE_KEY = "bistro-buddies-v1";
+
+const SPECIES = ["cat", "bear", "bunny", "frog", "fox", "panda", "pig", "duck"];
+const FUR = {
+  cat: ["#f4b183", "#c9c9c9", "#5b5b5b", "#f7e3c4"], bear: ["#a0714f", "#d8b48a"],
+  bunny: ["#ffffff", "#e8d5c4", "#cdb8aa"], frog: ["#8fd16a", "#6fc49b"], fox: ["#ee8a3c"],
+  panda: ["#ffffff"], pig: ["#f7b6c2"], duck: ["#ffe066"]
+};
+const SPECIES_EMOJI = { cat: "🐱", bear: "🐻", bunny: "🐰", frog: "🐸", fox: "🦊", panda: "🐼", pig: "🐷", duck: "🐥" };
+const NAMES = ["Mochi","Pip","Biscuit","Juniper","Tofu","Clover","Maple","Nori","Pebble","Sprout","Waffles","Olive","Ziggy","Bean","Poppy","Taro","Hazel","Miso","Fig","Basil","Noodle","Kiwi","Sesame","Truffle"];
+const ROLE = { chef: { icon: "🍳", label: "Chef" }, waiter: { icon: "🍽️", label: "Waiter" }, cleaner: { icon: "🧹", label: "Cleaner" } };
+
+const DISHES = [
+  { id: "rice",   e: "🍙", name: "Rice Ball",     price: 8,  time: 4,  lvl: 1 },
+  { id: "pan",    e: "🥞", name: "Pancake Stack", price: 10, time: 5,  lvl: 1 },
+  { id: "salad",  e: "🥗", name: "Garden Salad",  price: 12, time: 4,  lvl: 2 },
+  { id: "noodle", e: "🍜", name: "Noodle Soup",   price: 15, time: 7,  lvl: 2 },
+  { id: "taco",   e: "🌮", name: "Tacos",         price: 18, time: 6,  lvl: 3 },
+  { id: "pizza",  e: "🍕", name: "Pizza",         price: 22, time: 8,  lvl: 4 },
+  { id: "sushi",  e: "🍣", name: "Sushi Plate",   price: 28, time: 9,  lvl: 5 },
+  { id: "cake",   e: "🍰", name: "Berry Cake",    price: 35, time: 10, lvl: 6 }
+];
+const ITEMS = {
+  table:  { name: "Table",     cost: 40,  block: true,  decor: 0, lvl: 1, icon: "🟫" },
+  chair:  { name: "Chair",     cost: 20,  block: true,  decor: 0, lvl: 1, icon: "🪑" },
+  stove:  { name: "Stove",     cost: 150, block: true,  decor: 0, lvl: 1, icon: "🔥" },
+  plant:  { name: "Plant",     cost: 30,  block: true,  decor: 2, lvl: 1, icon: "🪴" },
+  rug:    { name: "Rug",       cost: 25,  block: false, decor: 1, lvl: 1, icon: "🟥" },
+  lamp:   { name: "Lamp",      cost: 45,  block: true,  decor: 3, lvl: 2, icon: "💡" },
+  toilet: { name: "Restroom",  cost: 180, block: true,  decor: 0, lvl: 2, icon: "🚽" },
+  tank:   { name: "Fish Tank", cost: 140, block: true,  decor: 6, lvl: 3, icon: "🐠" },
+  piano:  { name: "Piano",     cost: 260, block: true,  decor: 8, lvl: 4, icon: "🎹" }
+};
+const TRASH_EMOJI = ["🧻", "🍌", "🥫"];
+
+// ---------- helpers ----------
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const xpNeed = l => Math.round(25 * Math.pow(l, 1.6));
+const dishDef = id => DISHES.find(d => d.id === id);
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = clamp((n >> 16) + amt, 0, 255), g = clamp(((n >> 8) & 255) + amt, 0, 255), b = clamp((n & 255) + amt, 0, 255);
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+// ---------- state ----------
+let S;                                   // saved state
+let customers = [], orders = [], trash = [], floats = [], stoves = {};
+let spawnT = 2, speed = 1, buildSel = null, hover = null, panelOpen = null;
+
+function mkAnimal() { const sp = rnd(SPECIES); return { species: sp, fur: rnd(FUR[sp]), name: rnd(NAMES) }; }
+function mkStaff(role) {
+  const a = mkAnimal(), h = HOME[role];
+  return { id: uid(), role, ...a, energy: 100, x: h[0], y: h[1], path: [], task: null, face: 1 };
+}
+function newGame() {
+  S = { coins: 300, xp: 0, level: 1, pop: 30, items: [], staff: [], dishes: {}, time: 8 * 60, day: 1 };
+  DISHES.forEach(d => S.dishes[d.id] = { lv: 1, on: d.lvl === 1 });
+  const add = (type, gx, gy) => S.items.push({ id: uid(), type, gx, gy, uses: 0, broken: false });
+  add("stove", 0, 3); add("stove", 0, 5);
+  [[5, 4], [5, 7], [8, 6]].forEach(([x, y]) => { add("table", x, y); add("chair", x - 1, y); add("chair", x + 1, y); });
+  add("plant", 11, 1); add("plant", 2, 0); add("rug", 8, 2); add("rug", 7, 2); add("toilet", 0, 9); add("lamp", 11, 9);
+  S.staff = [mkStaff("chef"), mkStaff("waiter"), mkStaff("cleaner")];
+  customers = []; orders = []; trash = []; floats = []; stoves = {};
+}
+function save() {
+  try {
+    const data = { ...S, items: S.items.map(({ id, type, gx, gy, uses, broken }) => ({ id, type, gx, gy, uses, broken })),
+      staff: S.staff.map(({ id, role, species, fur, name, energy }) => ({ id, role, species, fur, name, energy })) };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch (e) { /* storage unavailable: play without saving */ }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY); if (!raw) return false;
+    const d = JSON.parse(raw); if (!d || !Array.isArray(d.items)) return false;
+    S = d;
+    DISHES.forEach(x => { if (!S.dishes[x.id]) S.dishes[x.id] = { lv: 1, on: x.lvl <= S.level }; });
+    S.staff = S.staff.map(s => { const h = HOME[s.role]; return { ...s, x: h[0], y: h[1], path: [], task: null, face: 1 }; });
+    return true;
+  } catch (e) { return false; }
+}
+
+// ---------- grid & pathfinding ----------
+const itemAt = (x, y) => S.items.find(i => i.gx === x && i.gy === y);
+const itemById = id => S.items.find(i => i.id === id);
+function blocked(x, y) {
+  if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
+  const it = itemAt(x, y); return !!(it && ITEMS[it.type].block);
+}
+// Breadth-first search on the tile grid. The target tile may be blocked (a chair, a stove).
+function bfs(sx, sy, tx, ty) {
+  const key = (x, y) => y * COLS + x, start = key(sx, sy), prev = new Map([[start, -1]]), q = [[sx, sy]];
+  for (let qi = 0; qi < q.length; qi++) {
+    const [x, y] = q[qi];
+    if (x === tx && y === ty) {
+      const p = []; let k = key(x, y);
+      while (k !== start) { p.unshift([k % COLS, Math.floor(k / COLS)]); k = prev.get(k); }
+      return p;
+    }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
+      const k = key(nx, ny); if (prev.has(k)) continue;
+      if (blocked(nx, ny) && !(nx === tx && ny === ty)) continue;
+      prev.set(k, key(x, y)); q.push([nx, ny]);
+    }
+  }
+  return null;
+}
+const tileOf = a => [Math.round(a.x), Math.round(a.y)];
+function pathTo(a, tx, ty) { const [x, y] = tileOf(a); return bfs(x, y, tx, ty); }
+function pathAdj(a, tx, ty) { const p = pathTo(a, tx, ty); if (!p) return null; p.pop(); return p; }
+// Move an agent along its path; returns true once it has arrived.
+function move(a, dt) {
+  if (!a.path || !a.path.length) return true;
+  const [tx, ty] = a.path[0], dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy), st = (a.speed || 2.6) * dt;
+  if (Math.abs(dx - dy) > 0.01) a.face = dx - dy > 0 ? 1 : -1;
+  a.walkT = (a.walkT || 0) + dt;
+  if (d <= st) { a.x = tx; a.y = ty; a.path.shift(); } else { a.x += dx / d * st; a.y += dy / d * st; }
+  return a.path.length === 0;
+}
+const atCenter = a => a.x === Math.round(a.x) && a.y === Math.round(a.y);
+
+// ---------- economy helpers ----------
+const chairs = () => S.items.filter(i => i.type === "chair" && tableNextTo(i));
+function tableNextTo(ch) {
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const t = itemAt(ch.gx + dx, ch.gy + dy); if (t && t.type === "table") return [dx, dy];
+  }
+  return null;
+}
+function decor() {
+  let d = 0; S.items.forEach(i => { d += ITEMS[i.type].decor; if (i.broken) d -= 5; });
+  return Math.max(0, d - trash.length);
+}
+const enabledDishes = () => DISHES.filter(d => d.lvl <= S.level && S.dishes[d.id].on);
+const dishPrice = d => Math.round(d.price * (1 + 0.2 * (S.dishes[d.id].lv - 1)));
+const cookTime = d => d.time * (1 - 0.1 * (S.dishes[d.id].lv - 1));
+function isOpen() {
+  const awake = r => S.staff.some(s => s.role === r && s.energy > 0);
+  if (!S.staff.some(s => s.role === "chef")) return "Closed: hire a chef";
+  if (!S.staff.some(s => s.role === "waiter")) return "Closed: hire a waiter";
+  if (!awake("chef") || !awake("waiter")) return "Your staff are napping! Serve ☕ coffee";
+  if (!S.items.some(i => i.type === "stove")) return "Closed: build a stove";
+  if (!chairs().length) return "Closed: put chairs next to a table";
+  if (!enabledDishes().length) return "Closed: put a dish on the menu";
+  return null;
+}
+function addXP(n) {
+  S.xp += n;
+  while (S.xp >= xpNeed(S.level)) {
+    S.xp -= xpNeed(S.level); S.level++;
+    const nd = DISHES.filter(d => d.lvl === S.level), ni = Object.values(ITEMS).filter(i => i.lvl === S.level);
+    nd.forEach(d => S.dishes[d.id].on = true);
+    const bits = [...nd.map(d => d.e + " " + d.name), ...ni.map(i => i.icon + " " + i.name)];
+    toast(`⭐ Level ${S.level}!` + (bits.length ? " Unlocked: " + bits.join(", ") : ""), 4);
+    if (panelOpen) renderPanel();
+  }
+}
+function float(a, text, color = "#4a3b35", dy = 0) { floats.push({ x: a.x, y: a.y, text, color, t: 0, dy }); }
+
+// ---------- customers (bots) ----------
+// States: queue -> enter -> seat -> waitFood -> eat -> (toToilet -> useToilet) -> leave -> gone
+function trySpawn() {
+  const active = customers.filter(c => c.state !== "leave").length;
+  if (active >= chairs().length + 2) return;
+  const c = { id: uid(), ...mkAnimal(), x: DOOR.x, y: DOOR.y, path: [], state: "queue", patience: 1,
+              chair: null, dish: rnd(enabledDishes()).id, timer: 0, retry: 0, waiter: null, mood: 0, face: -1, speed: 2.2 };
+  customers.push(c); assignChair(c);
+}
+function assignChair(c) {
+  const taken = new Set(customers.map(o => o.chair).filter(Boolean));
+  const free = chairs().filter(ch => !taken.has(ch.id));
+  free.sort(() => Math.random() - 0.5);
+  for (const ch of free) {
+    const p = pathTo(c, ch.gx, ch.gy);
+    if (p) { c.chair = ch.id; c.path = p; c.state = "enter"; return true; }
+  }
+  return false;
+}
+function drain(c, dt) {
+  c.patience -= dt / 45 / (1 + decor() / 40);
+  if (c.patience <= 0) angry(c);
+}
+function angry(c) {
+  S.pop -= 2.5; c.mood = -1; float(c, "😠", "#e63946");
+  orders.forEach(o => {
+    if (o.c !== c) return;
+    o.cancel = true;
+    if (o.status === "queued") o.done = true;
+    if (o.status === "ready") { delete stoves[o.stove]; o.done = true; }
+  });
+  leave(c);
+}
+function leave(c) {
+  c.seated = false; c.chair = null; c.waiter = null; c.state = "leave";
+  c.path = pathTo(c, DOOR.x, DOOR.y) || [];
+  if (!c.path.length) { c.state = "gone"; return; }
+  if (Math.random() < 0.28 && c.path.length > 2) c.dropAt = c.path.length - 1;
+}
+function finishMeal(c) {
+  const d = dishDef(c.dish), price = dishPrice(d);
+  const sat = c.patience * 0.8 + Math.min(0.4, decor() / 50);
+  const tip = sat > 0.7 ? Math.round(price * 0.25) : 0;
+  S.coins += price + tip;
+  addXP(Math.ceil(price / 3) + (sat > 0.7 ? 2 : 0));
+  float(c, "+" + (price + tip) + " 🪙", "#c98a00");
+  if (sat > 0.4) { S.pop += 0.6 + sat; c.mood = 1; float(c, "❤️", "#ff6f91", -18); }
+  else { S.pop -= 0.5; c.mood = -0.5; }
+  c.ate = true;
+  const t = S.items.find(i => i.type === "toilet" && !i.broken && !i.occ);
+  if (t && Math.random() < 0.35) {
+    const p = pathAdj(c, t.gx, t.gy);
+    if (p) { t.occ = c.id; c.toilet = t.id; c.chair = null; c.seated = false; c.path = p; c.state = "toToilet"; return; }
+  }
+  leave(c);
+}
+function updCust(c, dt) {
+  switch (c.state) {
+    case "queue":
+      drain(c, dt);
+      if (c.state === "queue" && (c.retry -= dt) <= 0) { c.retry = 1; assignChair(c); }
+      break;
+    case "enter":
+      if (!itemById(c.chair)) { c.chair = null; c.state = "queue"; c.path = []; break; }
+      if (move(c, dt)) { c.state = "seat"; c.seated = true; const t = tableNextTo(itemById(c.chair)); if (t) c.face = (t[0] - t[1]) >= 0 ? 1 : -1; }
+      break;
+    case "seat": case "waitFood": drain(c, dt); break;
+    case "eat": c.timer -= dt; if (c.timer <= 0) finishMeal(c); break;
+    case "toToilet": if (move(c, dt)) { c.state = "useToilet"; c.timer = 3; } break;
+    case "useToilet":
+      c.timer -= dt;
+      if (c.timer <= 0) {
+        const t = itemById(c.toilet);
+        if (t) { t.occ = null; t.uses++; if (t.uses >= 6 && !t.broken) { t.broken = true; toast("🚽 A restroom is clogged! Your cleaner will fix it."); } }
+        leave(c);
+      }
+      break;
+    case "leave": {
+      const done = move(c, dt);
+      if (c.dropAt != null && c.path.length <= c.dropAt && atCenter(c)) {
+        const [x, y] = tileOf(c);
+        if (!blocked(x, y) && !trash.some(t => t.x === x && t.y === y) && !(x === DOOR.x && y === DOOR.y))
+          trash.push({ id: uid(), x, y, e: rnd(TRASH_EMOJI) });
+        c.dropAt = null;
+      }
+      if (done) c.state = "gone";
+      break;
+    }
+  }
+}
+
+// ---------- staff (bots) ----------
+function chefPick(s) {
+  const o = orders.find(o => o.status === "queued" && !o.cancel); if (!o) return;
+  for (const st of S.items.filter(i => i.type === "stove" && !stoves[i.id])) {
+    const p = pathAdj(s, st.gx, st.gy); if (!p) continue;
+    stoves[st.id] = { o, ready: false, prog: 0 }; o.status = "cooking"; o.stove = st.id;
+    s.task = { type: "cook", o, st, phase: "walk" }; s.path = p; return;
+  }
+}
+function waiterPick(s) {
+  const o = orders.find(o => o.status === "ready" && !o.claimed && !o.cancel);
+  if (o) { const st = itemById(o.stove), p = st && pathAdj(s, st.gx, st.gy);
+    if (p) { o.claimed = true; s.task = { type: "fetch", o, phase: "walk" }; s.path = p; return; } }
+  const c = customers.find(c => c.state === "seat" && !c.waiter);
+  if (c) { const ch = itemById(c.chair), p = ch && pathAdj(s, ch.gx, ch.gy);
+    if (p) { c.waiter = s.id; s.task = { type: "take", c, phase: "walk" }; s.path = p; } }
+}
+function cleanerPick(s) {
+  let best = null, bp = null;
+  for (const t of trash.filter(t => !t.claimed)) { const p = pathTo(s, t.x, t.y); if (p && (!bp || p.length < bp.length)) { best = t; bp = p; } }
+  if (best) { best.claimed = true; s.task = { type: "trash", t: best, phase: "walk" }; s.path = bp; return; }
+  const ty = S.items.find(i => i.type === "toilet" && i.broken && !i.fixing);
+  if (ty) { const p = pathAdj(s, ty.gx, ty.gy); if (p) { ty.fixing = true; s.task = { type: "fix", it: ty, phase: "walk" }; s.path = p; } }
+}
+function faceTo(s, gx, gy) { const v = (gx - s.x) - (gy - s.y); if (Math.abs(v) > 0.01) s.face = v > 0 ? 1 : -1; }
+function runTask(s, dt) {
+  const t = s.task;
+  const abort = () => { s.task = null; s.carry = null; s.path = s.path.slice(0, 1); };
+  switch (t.type) {
+    case "cook":
+      if (t.phase === "walk") { if (move(s, dt)) { t.phase = "act"; t.total = t.timer = cookTime(dishDef(t.o.dish)); faceTo(s, t.st.gx, t.st.gy); } return; }
+      t.timer -= dt; stoves[t.st.id].prog = 1 - t.timer / t.total;
+      if (t.timer <= 0) {
+        if (t.o.cancel) { delete stoves[t.st.id]; t.o.done = true; }
+        else { t.o.status = "ready"; stoves[t.st.id].ready = true; }
+        s.task = null;
+      }
+      return;
+    case "take": {
+      const c = t.c;
+      if (c.state !== "seat") { if (c.waiter === s.id) c.waiter = null; return abort(); }
+      if (t.phase === "walk") { if (move(s, dt)) { t.phase = "act"; t.timer = 0.8; const ch = itemById(c.chair); if (ch) faceTo(s, ch.gx, ch.gy); } return; }
+      if ((t.timer -= dt) <= 0) {
+        orders.push({ id: uid(), c, dish: c.dish, status: "queued" });
+        c.state = "waitFood"; c.waiter = null; s.task = null;
+      }
+      return;
+    }
+    case "fetch": {
+      const o = t.o;
+      if (t.phase === "walk") {
+        if (o.cancel) { o.done = true; delete stoves[o.stove]; return abort(); }
+        if (move(s, dt)) { t.phase = "pick"; t.timer = 0.35; const st = itemById(o.stove); if (st) faceTo(s, st.gx, st.gy); }
+        return;
+      }
+      if (t.phase === "pick") {
+        if ((t.timer -= dt) > 0) return;
+        delete stoves[o.stove]; o.status = "carried"; s.carry = dishDef(o.dish).e;
+        const ch = itemById(o.c.chair);
+        const p = o.c.state === "waitFood" && ch ? pathAdj(s, ch.gx, ch.gy) : null;
+        if (!p) { o.done = true; float(s, "🗑️"); return abort(); }
+        s.path = p; t.phase = "deliver"; return;
+      }
+      if (o.c.state !== "waitFood") { o.done = true; float(s, "🗑️"); return abort(); }
+      if (move(s, dt)) {
+        o.c.state = "eat"; o.c.timer = 6; o.done = true; s.carry = null; s.task = null;
+        const ch = itemById(o.c.chair); if (ch) faceTo(s, ch.gx, ch.gy);
+      }
+      return;
+    }
+    case "trash":
+      if (!trash.includes(t.t)) return abort();
+      if (t.phase === "walk") { if (move(s, dt)) { t.phase = "act"; t.timer = 0.8; } return; }
+      if ((t.timer -= dt) <= 0) { trash = trash.filter(x => x !== t.t); float(s, "✨"); s.task = null; }
+      return;
+    case "fix":
+      if (!S.items.includes(t.it)) return abort();
+      if (t.phase === "walk") { if (move(s, dt)) { t.phase = "act"; t.timer = 3; faceTo(s, t.it.gx, t.it.gy); } return; }
+      if ((t.timer -= dt) <= 0) { t.it.broken = false; t.it.uses = 0; t.it.fixing = false; float(s, "🔧✨"); s.task = null; }
+      return;
+  }
+}
+function updStaff(s, dt) {
+  s.energy = Math.max(0, s.energy - dt * (s.task ? 0.22 : 0.04));
+  if (s.task) { runTask(s, dt); return; }
+  if (!atCenter(s)) { s.path = s.path.slice(0, 1); move(s, dt); return; }   // finish the current step first
+  s.sleep = s.energy <= 0;
+  if (s.sleep) return;
+  if (s.role === "chef") chefPick(s); else if (s.role === "waiter") waiterPick(s); else cleanerPick(s);
+  if (s.task) return;
+  if (!s.path.length && !s.homeFail) {
+    const h = HOME[s.role], [x, y] = tileOf(s);
+    if (x !== h[0] || y !== h[1]) { const p = blocked(h[0], h[1]) ? null : bfs(x, y, h[0], h[1]); if (p) s.path = p; else s.homeFail = true; }
+  }
+  move(s, dt);
+}
+
+// ---------- main update ----------
+function update(dt) {
+  S.time += dt * 2;
+  if (S.time >= 24 * 60) { S.time -= 24 * 60; S.day++; }
+  if (!isOpen()) {
+    spawnT -= dt;
+    if (spawnT <= 0) { trySpawn(); spawnT = (0.7 + Math.random() * 0.6) * Math.max(2.2, 11 - S.pop * 0.09); }
+  }
+  customers.forEach(c => updCust(c, dt));
+  customers = customers.filter(c => c.state !== "gone");
+  S.staff.forEach(s => updStaff(s, dt));
+  orders = orders.filter(o => !o.done);
+  const broken = S.items.filter(i => i.broken).length;
+  S.pop = clamp(S.pop - (trash.length * 0.03 + broken * 0.04) * dt, 0, 100);
+  floats.forEach(f => f.t += dt); floats = floats.filter(f => f.t < 1.6);
+}
+
+// ---------- rendering ----------
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+let W, H, DPR, zoom = 1, ox = 0, oy = 0;
+function resize() {
+  DPR = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + "px"; cv.style.height = H + "px";
+  zoom = Math.min(1.3, W / 790, (H - 150) / 470);
+  ox = (W / zoom) / 2 - (COLS - ROWS) * TW / 4;
+  oy = (H / zoom) / 2 - (COLS + ROWS) * TH / 4 + 44;
+}
+const iso = (gx, gy) => ({ x: ox + (gx - gy) * TW / 2, y: oy + (gx + gy) * TH / 2 });
+function toGrid(sx, sy) {
+  const a = (sx / zoom - ox) / (TW / 2), b = (sy / zoom - oy) / (TH / 2);
+  return [Math.floor((a + b) / 2), Math.floor((b - a) / 2)];
+}
+function poly(pts, fill, stroke) {
+  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+}
+const P = (x, y, z = 0) => { const p = iso(x, y); return [p.x, p.y - z]; };
+// Draw an axis-aligned box in tile space (x0..x1, y0..y1) from height z0 to z1.
+function box(x0, y0, x1, y1, z0, z1, top, left, right) {
+  poly([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)], left);
+  poly([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)], right);
+  poly([P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top);
+}
+const boxC = (x0, y0, x1, y1, z0, z1, c) => box(x0, y0, x1, y1, z0, z1, c, shade(c, -28), shade(c, -48));
+function wallQuad(x0, y0, x1, y1, z0, z1, col) { poly([P(x0, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y0, z1)], col); }
+function emoji(e, x, y, size) { ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e, x, y); }
+function circle(x, y, r, fill) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); }
+function ell(x, y, rx, ry, fill) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); }
+
+function drawRoom(t) {
+  // outdoor grass + path
+  poly([P(-3, -3), P(COLS + 3, -3), P(COLS + 3, ROWS + 3), P(-3, ROWS + 3)], "#a8dcb5");
+  // floor
+  for (let x = 0; x < COLS; x++) for (let y = 0; y < ROWS; y++) {
+    const kitchen = x <= 2;
+    const c = kitchen ? ((x + y) % 2 ? "#e9edf2" : "#dfe5ec") : ((x + y) % 2 ? "#f6e2bf" : "#efd6ab");
+    poly([P(x, y), P(x + 1, y), P(x + 1, y + 1), P(x, y + 1)], c);
+  }
+  // floor edge
+  box(0, ROWS, COLS, ROWS + 0.18, -10, 0, "#d9b98c", "#c9a273", "#b38c5f");
+  box(COLS, 0, COLS + 0.18, ROWS, -10, 0, "#d9b98c", "#c9a273", "#b38c5f");
+  // rugs (flat)
+  S.items.filter(i => i.type === "rug").forEach(i => {
+    poly([P(i.gx + .06, i.gy + .06), P(i.gx + .94, i.gy + .06), P(i.gx + .94, i.gy + .94), P(i.gx + .06, i.gy + .94)], "#e8747c");
+    poly([P(i.gx + .2, i.gy + .2), P(i.gx + .8, i.gy + .2), P(i.gx + .8, i.gy + .8), P(i.gx + .2, i.gy + .8)], null, "#fff3");
+  });
+  // left wall (gx = 0 edge)
+  wallQuad(0, 0, 0, ROWS, 0, WALL, "#fbe3d3");
+  wallQuad(0, 0, 0, ROWS, 0, 24, "#efc2ab");
+  for (let gy = 0; gy < ROWS; gy++) wallQuad(0, gy + .02, 0, gy + .04, 24, WALL, "#f3d2c0");
+  [1, 7].forEach(gy => { wallQuad(0, gy + .12, 0, gy + .88, 38, 76, "#fff"); wallQuad(0, gy + .18, 0, gy + .82, 42, 72, "#bfe6f7"); wallQuad(0, gy + .49, 0, gy + .51, 42, 72, "#fff"); });
+  // chalkboard menu
+  wallQuad(0, 3.1, 0, 5.9, 36, 80, "#8a5a3b"); wallQuad(0, 3.18, 0, 5.82, 40, 76, "#36504a");
+  const on = enabledDishes();
+  on.slice(0, 6).forEach((d, k) => { const [x, y] = P(0, 3.45 + (k % 3) * 0.95, k < 3 ? 66 : 50); emoji(d.e, x, y, 12); });
+  // right wall (gy = 0 edge)
+  wallQuad(0, 0, COLS, 0, 0, WALL, "#dff1e6");
+  wallQuad(0, 0, COLS, 0, 0, 24, "#b9dec9");
+  for (let gx = 1; gx < COLS; gx++) wallQuad(gx - .02, 0, gx, 0, 24, WALL, "#cfe8d9");
+  [3, 6].forEach(gx => { wallQuad(gx + .12, 0, gx + .88, 0, 38, 76, "#fff"); wallQuad(gx + .18, 0, gx + .82, 0, 42, 72, "#bfe6f7"); wallQuad(gx + .49, 0, gx + .51, 0, 42, 72, "#fff"); });
+  // door
+  wallQuad(DOOR.x + .08, 0, DOOR.x + .92, 0, 0, 66, "#8a5a3b");
+  wallQuad(DOOR.x + .16, 0, DOOR.x + .84, 0, 0, 60, "#4b3a33");
+  { const [x, y] = P(DOOR.x + .5, 0, 80); ctx.fillStyle = "#ff8a65"; ctx.beginPath(); ctx.roundRect(x - 26, y - 9, 52, 18, 8); ctx.fill(); ctx.fillStyle = "#fff"; ctx.font = "bold 10px ui-rounded,system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(isOpen() ? "CLOSED" : "OPEN", x, y + 1); }
+  // wall clock
+  { const [x, y] = P(1.5, 0, 60); circle(x, y, 11, "#fff"); ctx.strokeStyle = "#8a5a3b"; ctx.lineWidth = 2; ctx.stroke();
+    const h = (S.time / 60) % 12, m = S.time % 60; ctx.strokeStyle = "#4a3b35"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(h / 12 * 6.283) * 6, y - Math.cos(h / 12 * 6.283) * 6); ctx.stroke();
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(m / 60 * 6.283) * 9, y - Math.cos(m / 60 * 6.283) * 9); ctx.stroke(); }
+  // wall tops
+  box(-0.12, -0.12, 0, ROWS, WALL, WALL + 4, "#e8c4ae", "#d8ad95", "#d8ad95");
+  box(-0.12, -0.12, COLS, 0, WALL, WALL + 4, "#c9e5d4", "#b4d5c1", "#b4d5c1");
+}
+
+function drawItem(i, t) {
+  const { gx: x, gy: y } = i;
+  switch (i.type) {
+    case "table":
+      boxC(x + .44, y + .44, x + .56, y + .56, 0, 14, "#b07a4c");
+      boxC(x + .1, y + .1, x + .9, y + .9, 14, 18, "#f2c38b");
+      poly([P(x + .14, y + .14, 18), P(x + .86, y + .14, 18), P(x + .86, y + .86, 18), P(x + .14, y + .86, 18)], "#fff7e8");
+      { const [cx, cy] = P(x + .5, y + .5, 18); ell(cx, cy - 4, 3, 5, "#9ad0f5"); circle(cx, cy - 10, 3, "#ff8fab"); }
+      break;
+    case "chair": {
+      const d = tableNextTo(i) || [1, 0];
+      boxC(x + .3, y + .3, x + .7, y + .7, 0, 10, "#c98d58");
+      let b;
+      if (d[0] === 1) b = [x + .3, y + .3, x + .38, y + .7]; else if (d[0] === -1) b = [x + .62, y + .3, x + .7, y + .7];
+      else if (d[1] === 1) b = [x + .3, y + .3, x + .7, y + .38]; else b = [x + .3, y + .62, x + .7, y + .7];
+      boxC(b[0], b[1], b[2], b[3], 10, 26, "#b8794a");
+      break;
+    }
+    case "stove": {
+      const st = stoves[i.id];
+      boxC(x + .08, y + .08, x + .92, y + .92, 0, 26, "#dde2e8");
+      boxC(x + .08, y + .08, x + .2, y + .92, 26, 40, "#c3cad3");
+      const [cx, cy] = P(x + .55, y + .5, 26);
+      ell(cx - 6, cy - 2, 7, 3.5, "#59606b"); ell(cx + 8, cy + 3, 7, 3.5, "#59606b");
+      if (st && !st.ready) {
+        const f = 3 + Math.sin(t * 20) * 1.5; ell(cx - 6, cy - 3, 5, f, "#ff9f43"); ell(cx - 6, cy - 3, 2.5, f * .6, "#ffe066");
+        ell(cx - 6, cy - 9, 8, 5, "#59606b");
+        for (let k = 0; k < 3; k++) { const ph = (t * 0.8 + k / 3) % 1; ctx.globalAlpha = 1 - ph; circle(cx - 6 + Math.sin(ph * 6 + k) * 4, cy - 16 - ph * 22, 3 + ph * 4, "#ffffff"); }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#fff"; ctx.fillRect(cx - 14, cy + 14, 28, 5); ctx.fillStyle = "#7fcfae"; ctx.fillRect(cx - 14, cy + 14, 28 * st.prog, 5);
+      }
+      if (st && st.ready) { emoji(dishDef(st.o.dish).e, cx, cy - 10 + Math.sin(t * 4) * 2, 18); emoji("✨", cx + 12, cy - 20, 10); }
+      break;
+    }
+    case "plant": {
+      boxC(x + .32, y + .32, x + .68, y + .68, 0, 14, "#d9825b");
+      const [cx, cy] = P(x + .5, y + .5, 14);
+      [[0, -18, 9], [-8, -10, 7], [8, -10, 7], [0, -6, 8], [-4, -24, 6], [5, -22, 6]].forEach(([a, b, r], k) => circle(cx + a, cy + b, r, k % 2 ? "#6cc18a" : "#58ad77"));
+      break;
+    }
+    case "lamp": {
+      boxC(x + .38, y + .38, x + .62, y + .62, 0, 4, "#8a5a3b");
+      const [cx, cy] = P(x + .5, y + .5, 4);
+      ctx.fillStyle = "#8a5a3b"; ctx.fillRect(cx - 1.5, cy - 42, 3, 42);
+      ctx.globalAlpha = .25 + Math.sin(t * 2) * .05; circle(cx, cy - 46, 22, "#ffe9a8"); ctx.globalAlpha = 1;
+      poly([[cx - 8, cy - 40], [cx + 8, cy - 40], [cx + 12, cy - 30], [cx - 12, cy - 30]], "#ffd36e");
+      break;
+    }
+    case "toilet": {
+      if (i.broken) { const [px, py] = P(x + .5, y + .5); ell(px, py + 2, 26, 11, "#9ad7f5"); }
+      boxC(x + .25, y + .45, x + .75, y + .85, 0, 12, "#ffffff");
+      const [cx, cy] = P(x + .5, y + .65, 12); ell(cx, cy, 9, 4.5, "#e8eef3"); ell(cx, cy, 6, 3, "#b9d8ea");
+      boxC(x + .22, y + .15, x + .78, y + .35, 0, 28, "#f7f9fb");
+      if (i.broken) { const [px, py] = P(x + .5, y + .5, 30); emoji("💧", px + Math.sin(t * 3) * 2, py - 14, 16); }
+      if (i.occ) { const [px, py] = P(x + .5, y + .5, 34); emoji("🚻", px, py - 6, 12); }
+      break;
+    }
+    case "tank": {
+      boxC(x + .12, y + .25, x + .88, y + .75, 0, 12, "#8a5a3b");
+      ctx.globalAlpha = .75; box(x + .12, y + .25, x + .88, y + .75, 12, 40, "#bfe6f7", "#8fd0ee", "#6fbde3"); ctx.globalAlpha = 1;
+      const [cx, cy] = P(x + .5, y + .5, 24);
+      emoji("🐠", cx + Math.sin(t) * 10, cy + Math.cos(t * 1.3) * 3, 12); emoji("🐟", cx - Math.sin(t * .8) * 9, cy + 6, 10);
+      break;
+    }
+    case "piano": {
+      boxC(x + .08, y + .2, x + .92, y + .8, 0, 26, "#3b3346");
+      box(x + .08, y + .55, x + .92, y + .8, 26, 28, "#ffffff", "#ddd", "#ccc");
+      boxC(x + .08, y + .2, x + .92, y + .4, 26, 44, "#4a4158");
+      const [cx, cy] = P(x + .5, y + .3, 52); emoji(["🎵", "🎶"][Math.floor(t) % 2], cx + Math.sin(t * 2) * 6, cy - (t * 10 % 12), 12);
+      break;
+    }
+  }
+}
+
+function drawChar(a, t, opts = {}) {
+  const role = opts.role;
+  const sit = a.seated ? 10 : 0;
+  const p = iso(a.x + .5, a.y + .5);
+  const walking = a.path && a.path.length;
+  const bob = walking ? Math.abs(Math.sin(a.walkT * 12)) * 2.5 : Math.sin(t * 2 + a.x) * 0.6;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ell(0, 0, 10, 4, "rgba(0,0,0,.14)");
+  ctx.translate(0, -bob - sit);
+  if (a.face < 0) ctx.scale(-1, 1);
+  const fur = a.fur, dark = shade(fur, -35);
+  // feet
+  if (!a.seated) { const sw = walking ? Math.sin(a.walkT * 12) * 2 : 0; ell(-4 + sw, -1, 3.5, 2.5, dark); ell(4 - sw, -1, 3.5, 2.5, dark); }
+  // body
+  let body = fur;
+  if (role === "chef") body = "#fdfdfd"; else if (role === "waiter") body = "#3d4a6b"; else if (role === "cleaner") body = "#5aa7e0";
+  ell(0, -12, 10, 11, body);
+  if (role === "chef") { ell(0, -10, 6, 7, "#f1f1f1"); }
+  if (role === "waiter") { poly([[-3, -21], [0, -19], [-3, -17]], "#ff5d73"); poly([[3, -21], [0, -19], [3, -17]], "#ff5d73"); }
+  if (role === "cleaner") { ctx.fillStyle = "#3f86bd"; ctx.fillRect(-6, -14, 12, 8); }
+  if (!role) ell(0, -10, 5.5, 6, shade(fur, 25));
+  // arms
+  ell(-9, -12, 3, 5, role ? fur : dark); ell(9, -12, 3, 5, role ? fur : dark);
+  // head
+  const hy = -33;
+  const sp = a.species;
+  const ear = (fn) => { fn(1); ctx.save(); ctx.scale(-1, 1); fn(-1); ctx.restore(); };
+  if (sp === "cat" || sp === "fox" || sp === "pig") ear(() => poly([[-11, hy - 3], [-8, hy - 15], [-2, hy - 9]], sp === "pig" ? shade(fur, -15) : fur));
+  if (sp === "bear") ear(() => { circle(-8, hy - 9, 4.5, fur); circle(-8, hy - 9, 2.2, shade(fur, 30)); });
+  if (sp === "panda") ear(() => circle(-8, hy - 9, 4.5, "#2b2b2b"));
+  if (sp === "bunny") ear(() => { ell(-5, hy - 17, 3.5, 10, fur); ell(-5, hy - 16, 1.6, 7, "#ffc4d0"); });
+  if (sp === "frog") ear(() => circle(-6, hy - 9, 5, fur));
+  circle(0, hy, 12, fur);
+  if (sp === "fox") { ell(2, hy + 5, 7, 5, "#fff6ec"); }
+  if (sp === "panda") { ell(-4.5, hy, 3.5, 4, "#2b2b2b"); ell(5.5, hy, 3.5, 4, "#2b2b2b"); }
+  if (sp === "pig") { ell(3, hy + 4, 4.5, 3.2, "#f08ca0"); circle(1.5, hy + 4, .9, "#a0566a"); circle(4.5, hy + 4, .9, "#a0566a"); }
+  if (sp === "duck") { ell(6, hy + 4, 6, 3, "#ff9f43"); poly([[-1, hy - 12], [1, hy - 17], [3, hy - 12]], "#f7c948"); }
+  if (sp === "bunny" || sp === "cat" || sp === "bear") { ell(2, hy + 5, 2, 1.4, "#d9737f"); }
+  // eyes
+  const ey = sp === "frog" ? hy - 9 : hy - 1;
+  const eyeC = sp === "panda" ? "#fff" : "#2b2422";
+  if (opts.sleep) { ctx.strokeStyle = eyeC; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-6, ey); ctx.lineTo(-2, ey); ctx.moveTo(4, ey); ctx.lineTo(8, ey); ctx.stroke(); }
+  else { circle(-4 + 1.5, ey, 1.9, eyeC); circle(4 + 1.5, ey, 1.9, eyeC); circle(-4 + 2.2, ey - .7, .6, "#fff"); circle(4 + 2.2, ey - .7, .6, "#fff"); }
+  ctx.globalAlpha = .45; circle(-7, hy + 4, 2.6, "#ff8fa3"); circle(9, hy + 4, 2.6, "#ff8fa3"); ctx.globalAlpha = 1;
+  // mouth
+  if (sp !== "duck") {
+    ctx.strokeStyle = "#5b3b33"; ctx.lineWidth = 1.2; ctx.beginPath();
+    if (a.mood < 0) ctx.arc(2, hy + 9, 2.5, Math.PI * 1.15, Math.PI * 1.85); else ctx.arc(2, hy + 6, 2.5, Math.PI * .15, Math.PI * .85);
+    ctx.stroke();
+  }
+  // hats
+  if (role === "chef") { ctx.fillStyle = "#fff"; ctx.fillRect(-7, hy - 17, 14, 7); circle(-5, hy - 19, 5, "#fff"); circle(0, hy - 22, 6, "#fff"); circle(5, hy - 19, 5, "#fff"); ctx.strokeStyle = "#e3e3e3"; ctx.strokeRect(-7, hy - 17, 14, 7); }
+  if (role === "cleaner") { ctx.beginPath(); ctx.arc(0, hy - 6, 11, Math.PI, 0); ctx.fillStyle = "#3f86bd"; ctx.fill(); ell(7, hy - 6, 8, 2.5, "#2f6f9e"); }
+  if (a.mood < 0 && !role) { ctx.fillStyle = "#e63946"; ctx.font = "bold 10px system-ui"; ctx.fillText("💢", -12, hy - 12); }
+  ctx.restore();
+  // carried dish
+  if (a.carry) emoji(a.carry, p.x + (a.face < 0 ? -14 : 14), p.y - 26 - bob, 15);
+  if (opts.sleep) { ctx.fillStyle = "#6b5b95"; ctx.font = "bold 12px ui-rounded,system-ui"; ctx.textAlign = "left"; const k = (t % 1.5) / 1.5; ctx.globalAlpha = 1 - k; ctx.fillText("Z z z", p.x + 8, p.y - 48 - k * 10); ctx.globalAlpha = 1; }
+  // name tag for staff
+  if (role) {
+    ctx.font = "bold 9px ui-rounded,system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const label = ROLE[role].icon + " " + a.name, w = ctx.measureText(label).width + 10;
+    ctx.fillStyle = "rgba(255,250,242,.92)"; ctx.beginPath(); ctx.roundRect(p.x - w / 2, p.y + 6, w, 13, 6); ctx.fill();
+    ctx.fillStyle = "#4a3b35"; ctx.fillText(label, p.x, p.y + 13);
+    if (a.energy < 25) { ctx.fillStyle = "#ffcf5c"; ctx.fillRect(p.x - 12, p.y + 21, 24, 3); ctx.fillStyle = "#e63946"; ctx.fillRect(p.x - 12, p.y + 21, 24 * a.energy / 100, 3); }
+  }
+  return { x: p.x, y: p.y - sit - bob };
+}
+
+function bubble(x, y, content, frac) {
+  const by = y - 66;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(x, by, 15, 0, Math.PI * 2); ctx.fill();
+  poly([[x - 5, by + 11], [x + 5, by + 11], [x, by + 20]], "#fff");
+  if (frac != null) {
+    ctx.strokeStyle = frac > .5 ? "#7fcfae" : frac > .25 ? "#ffb347" : "#ff5d73"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, by, 15, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, frac)); ctx.stroke();
+  }
+  emoji(content, x, by + 1, 16);
+}
+
+function render(t) {
+  ctx.setTransform(DPR * zoom, 0, 0, DPR * zoom, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, H / zoom);
+  g.addColorStop(0, "#cdeee4"); g.addColorStop(1, "#a8dcc9");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W / zoom, H / zoom);
+  drawRoom(t);
+  // build hover
+  if (buildSel && hover) {
+    const [hx, hy] = hover, ok = canPlace(hx, hy).ok;
+    if (hx >= 0 && hy >= 0 && hx < COLS && hy < ROWS)
+      poly([P(hx, hy), P(hx + 1, hy), P(hx + 1, hy + 1), P(hx, hy + 1)], ok ? "rgba(127,207,174,.55)" : "rgba(255,93,115,.45)");
+  }
+  // depth-sorted drawables
+  const list = [];
+  S.items.forEach(i => { if (i.type !== "rug") list.push({ k: i.gx + i.gy + (i.type === "chair" ? 0.2 : 0.3), f: () => drawItem(i, t) }); });
+  trash.forEach(tr => list.push({ k: tr.x + tr.y + 0.1, f: () => { const p = iso(tr.x + .5, tr.y + .5); emoji(tr.e, p.x, p.y - 4, 14); } }));
+  customers.forEach(c => list.push({ k: c.x + c.y + (c.seated ? 0.25 : 0.5), f: () => {
+    const p = drawChar(c, t);
+    if (c.state === "queue") bubble(p.x, p.y, "🪑", c.patience);
+    else if (c.state === "seat") bubble(p.x, p.y, "❗", c.patience);
+    else if (c.state === "waitFood") bubble(p.x, p.y, dishDef(c.dish).e, c.patience);
+    else if (c.state === "eat") { const ch = itemById(c.chair), tb = ch && tableNextTo(ch); if (tb) { const q = iso(ch.gx + tb[0] + .5, ch.gy + tb[1] + .5); emoji(dishDef(c.dish).e, q.x, q.y - 24, 15); } emoji("😋", p.x + 12, p.y - 50, 12); }
+    else if (c.state === "leave" && c.mood < 0) bubble(p.x, p.y, "😠");
+    else if (c.state === "leave" && c.mood > 0 && c.path.length > 3) bubble(p.x, p.y, "😊");
+  } }));
+  S.staff.forEach(s => list.push({ k: s.x + s.y + 0.5, f: () => drawChar(s, t, { role: s.role, sleep: s.sleep }) }));
+  list.sort((a, b) => a.k - b.k).forEach(d => d.f());
+  // floating texts
+  floats.forEach(f => {
+    const p = iso(f.x + .5, f.y + .5), k = f.t / 1.6;
+    ctx.globalAlpha = 1 - k; ctx.font = "bold 14px ui-rounded,system-ui"; ctx.textAlign = "center";
+    ctx.fillStyle = f.color; ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+    ctx.strokeText(f.text, p.x, p.y - 70 - k * 30 + f.dy); ctx.fillText(f.text, p.x, p.y - 70 - k * 30 + f.dy);
+    ctx.globalAlpha = 1;
+  });
+}
+
+// ---------- building ----------
+function canPlace(x, y) {
+  if (buildSel === "sell") { const it = itemAt(x, y); return { ok: !!it && canSell(it) }; }
+  const def = ITEMS[buildSel];
+  if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return { ok: false };
+  if (NO_BUILD.has(x + "," + y)) return { ok: false, why: "Keep the entrance clear!" };
+  if (itemAt(x, y)) return { ok: false, why: "Something is already there." };
+  if (S.coins < def.cost) return { ok: false, why: "Not enough coins." };
+  if (def.block && [...customers, ...S.staff].some(a => { const [ax, ay] = tileOf(a); return ax === x && ay === y; })) return { ok: false, why: "Someone is standing there." };
+  if (def.block && trash.some(tr => tr.x === x && tr.y === y)) return { ok: false, why: "Clean up the trash first." };
+  return { ok: true };
+}
+function canSell(it) {
+  if (it.type === "stove" && stoves[it.id]) return false;
+  if (it.type === "chair" && customers.some(c => c.chair === it.id)) return false;
+  if (it.type === "table" && customers.some(c => { const ch = itemById(c.chair); return ch && ch.gx + (tableNextTo(ch) || [9, 9])[0] === it.gx && ch.gy + (tableNextTo(ch) || [9, 9])[1] === it.gy; })) return false;
+  if (it.type === "toilet" && (it.occ || it.fixing)) return false;
+  return true;
+}
+function clickTile(x, y) {
+  if (buildSel === "sell") {
+    const it = itemAt(x, y); if (!it) return;
+    if (!canSell(it)) return toast("That's in use right now.");
+    S.items = S.items.filter(i => i !== it); const back = Math.floor(ITEMS[it.type].cost / 2); S.coins += back;
+    float({ x, y }, "+" + back + " 🪙", "#c98a00"); afterBuild(); return;
+  }
+  if (buildSel) {
+    const r = canPlace(x, y); if (!r.ok) { if (r.why) toast(r.why); return; }
+    S.coins -= ITEMS[buildSel].cost;
+    S.items.push({ id: uid(), type: buildSel, gx: x, gy: y, uses: 0, broken: false });
+    afterBuild(); return;
+  }
+  const tr = trash.find(t => t.x === x && t.y === y);
+  if (tr) { trash = trash.filter(t => t !== tr); S.coins += 1; float({ x, y }, "+1 🪙 ✨", "#c98a00"); }
+}
+function afterBuild() { S.staff.forEach(s => s.homeFail = false); updateHUD(); if (panelOpen) renderPanel(); save(); }
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+let toastTimer = null;
+function toast(msg, sec = 2.6) { const el = $("toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), sec * 1000); }
+function updateHUD() {
+  $("coins").textContent = Math.floor(S.coins);
+  $("lvl").textContent = S.level;
+  $("xpbar").style.width = (S.xp / xpNeed(S.level) * 100) + "%";
+  $("pop").textContent = Math.round(S.pop); $("popbar").style.width = S.pop + "%";
+  const h = Math.floor(S.time / 60), m = Math.floor(S.time % 60);
+  $("clock").textContent = `Day ${S.day} · ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  const st = isOpen(), el = $("status");
+  el.style.display = st || buildSel ? "block" : "none";
+  el.textContent = buildSel ? (buildSel === "sell" ? "💰 Sell mode: click an item to sell it for half price" : `🛠️ Placing ${ITEMS[buildSel].name}: click a tile`) : (st || "");
+  $("coffee").textContent = `☕ Coffee (${coffeeCost()})`;
+  $("coffee").disabled = S.coins < coffeeCost() || S.staff.every(s => s.energy > 95);
+  document.querySelectorAll("[data-panel]").forEach(b => b.classList.toggle("on", b.dataset.panel === panelOpen));
+}
+const coffeeCost = () => 6 * S.staff.length;
+const hireCost = () => 80 + 40 * S.staff.length;
+const maxStaff = () => 3 + S.level;
+function renderPanel() {
+  const el = $("panel");
+  if (!panelOpen) { el.classList.remove("show"); return; }
+  el.classList.add("show");
+  let h = "";
+  if (panelOpen === "build") {
+    h += `<h2>🛠️ Build & decorate</h2><div class="sub">Decor raises customer patience. Chairs must touch a table. Decor score: <b>${decor()}</b></div><div class="grid">`;
+    for (const [k, d] of Object.entries(ITEMS)) {
+      const lock = d.lvl > S.level;
+      h += `<div class="card ${buildSel === k ? "sel" : ""} ${lock ? "lock" : ""}" data-build="${lock ? "" : k}"><span class="ic">${d.icon}</span>${d.name}<div class="small">${lock ? "🔒 Lv " + d.lvl : "🪙 " + d.cost}${d.decor ? " · +" + d.decor + "✨" : ""}</div></div>`;
+    }
+    h += `<div class="card ${buildSel === "sell" ? "sel" : ""}" data-build="sell"><span class="ic">💰</span>Sell<div class="small">50% back</div></div></div>`;
+    h += `<p style="text-align:center"><button class="mini gray" data-act="done">Done building</button></p>`;
+  }
+  if (panelOpen === "staff") {
+    h += `<h2>🧑‍🍳 Your crew</h2><div class="sub">Staff work on their own. They get sleepy over time, so serve ☕ coffee. Crew ${S.staff.length}/${maxStaff()}</div>`;
+    S.staff.forEach(s => {
+      h += `<div class="row"><span class="ic">${SPECIES_EMOJI[s.species]}</span><div class="grow"><b>${s.name}</b><span class="small">${ROLE[s.role].icon} ${ROLE[s.role].label}${s.sleep ? " · 💤 napping" : s.task ? " · busy" : " · idle"}</span><div class="ebar"><i style="width:${s.energy}%"></i></div></div><button class="mini gray" data-fire="${s.id}">Let go</button></div>`;
+    });
+    h += `<h3>Hire (🪙 ${hireCost()})</h3>`;
+    for (const r of ["chef", "waiter", "cleaner"])
+      h += `<button class="mini" style="margin:0 6px 6px 0" data-hire="${r}" ${S.coins < hireCost() || S.staff.length >= maxStaff() ? "disabled" : ""}>${ROLE[r].icon} ${ROLE[r].label}</button>`;
+  }
+  if (panelOpen === "menu") {
+    h += `<h2>📜 Menu</h2><div class="sub">Customers pick from dishes that are switched on. Upgrades raise the price and cook faster.</div>`;
+    DISHES.forEach(d => {
+      const st = S.dishes[d.id], lock = d.lvl > S.level, upCost = d.price * 15 * st.lv;
+      h += `<div class="row" style="${lock ? "opacity:.45" : ""}"><span class="ic">${d.e}</span><div class="grow"><b>${d.name} ${"★".repeat(st.lv)}</b><span class="small">${lock ? "🔒 Unlocks at Lv " + d.lvl : `🪙 ${dishPrice(d)} · ⏱ ${cookTime(d).toFixed(1)}s`}</span></div>`;
+      if (!lock) h += `<button class="mini ${st.on ? "" : "gray"}" data-toggle="${d.id}">${st.on ? "On" : "Off"}</button><button class="mini" data-up="${d.id}" ${st.lv >= 5 || S.coins < upCost ? "disabled" : ""}>${st.lv >= 5 ? "Max" : "⬆ " + upCost}</button>`;
+      h += `</div>`;
+    });
+    h += `<h3>Save</h3><button class="mini gray" data-act="reset">${resetArmed ? "Click again to confirm" : "⟳ Start a new restaurant"}</button>`;
+  }
+  el.innerHTML = h;
+}
+let resetArmed = false;
+document.addEventListener("click", e => {
+  const b = e.target.closest("button,[data-build]"); if (!b) return;
+  if (b.dataset.panel) { panelOpen = panelOpen === b.dataset.panel ? null : b.dataset.panel; if (panelOpen !== "build") buildSel = null; renderPanel(); updateHUD(); return; }
+  if (b.dataset.s != null) { speed = +b.dataset.s; document.querySelectorAll("#speed button").forEach(x => x.classList.toggle("on", x === b)); return; }
+  if (b.id === "coffee") { const c = coffeeCost(); if (S.coins >= c) { S.coins -= c; S.staff.forEach(s => { s.energy = 100; float(s, "☕", "#8a5a3b"); }); toast("☕ Everyone's buzzing again!"); updateHUD(); } return; }
+  if (b.dataset.build !== undefined) { if (!b.dataset.build) return; buildSel = buildSel === b.dataset.build ? null : b.dataset.build; renderPanel(); updateHUD(); return; }
+  if (b.dataset.act === "done") { buildSel = null; panelOpen = null; renderPanel(); updateHUD(); return; }
+  if (b.dataset.act === "reset") { if (!resetArmed) { resetArmed = true; renderPanel(); setTimeout(() => { resetArmed = false; if (panelOpen === "menu") renderPanel(); }, 3000); return; } resetArmed = false; newGame(); save(); panelOpen = null; renderPanel(); toast("🎉 A fresh new bistro!"); return; }
+  if (b.dataset.hire) {
+    if (S.coins < hireCost() || S.staff.length >= maxStaff()) return;
+    S.coins -= hireCost(); const s = mkStaff(b.dataset.hire); s.x = DOOR.x; s.y = DOOR.y; S.staff.push(s);
+    toast(`${SPECIES_EMOJI[s.species]} ${s.name} joined as ${ROLE[s.role].label}!`); renderPanel(); updateHUD(); save(); return;
+  }
+  if (b.dataset.fire) {
+    const s = S.staff.find(x => x.id === b.dataset.fire); if (!s) return;
+    if (s.task) return toast(`${s.name} is busy, try again in a moment.`);
+    S.staff = S.staff.filter(x => x !== s); toast(`👋 ${s.name} waved goodbye.`); renderPanel(); updateHUD(); save(); return;
+  }
+  if (b.dataset.toggle) {
+    const st = S.dishes[b.dataset.toggle];
+    if (st.on && enabledDishes().length <= 1) return toast("Keep at least one dish on the menu!");
+    st.on = !st.on; renderPanel(); return;
+  }
+  if (b.dataset.up) {
+    const d = dishDef(b.dataset.up), st = S.dishes[d.id], c = d.price * 15 * st.lv;
+    if (S.coins < c || st.lv >= 5) return;
+    S.coins -= c; st.lv++; toast(`${d.e} ${d.name} upgraded to ★${st.lv}!`); renderPanel(); updateHUD(); save(); return;
+  }
+});
+cv.addEventListener("pointermove", e => { hover = toGrid(e.clientX, e.clientY); });
+cv.addEventListener("pointerleave", () => hover = null);
+cv.addEventListener("pointerdown", e => { const [x, y] = toGrid(e.clientX, e.clientY); hover = [x, y]; clickTile(x, y); updateHUD(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { buildSel = null; panelOpen = null; renderPanel(); updateHUD(); } });
+
+// ---------- loop ----------
+if (!load()) newGame();
+resize(); addEventListener("resize", resize);
+let last = performance.now(), hudT = 0, saveT = 0, simT = 0, staffT = 0;
+function frame(now) {
+  const real = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = real * speed;
+  // run in small steps so 3× stays stable
+  const steps = Math.max(1, Math.ceil(dt / 0.02));
+  for (let i = 0; i < steps && speed; i++) update(dt / steps);
+  simT += dt;
+  render(simT);
+  if ((hudT += real) > 0.25) { hudT = 0; updateHUD(); }
+  if (panelOpen === "staff" && (staffT += real) > 1) { staffT = 0; renderPanel(); }
+  if ((saveT += real) > 5) { saveT = 0; save(); }
+  requestAnimationFrame(frame);
+}
+addEventListener("beforeunload", save);
+updateHUD();
+toast("Welcome to Bistro Buddies! Customers walk in on their own. Tap trash to tidy, and keep your crew caffeinated ☕", 5);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
