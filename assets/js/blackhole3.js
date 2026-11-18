@@ -1,4 +1,4 @@
-/* About page: Gargantua-style black hole in Three.js (preview, loaded with ?three on life.html).
+/* About page: Gargantua-style black hole in Three.js (the video in life.html is only the fallback).
 
    What Three.js adds over the plain-WebGL / video versions:
    - A real 3D camera orbiting the hole. Moving the pointer changes the viewing angle, so the
@@ -231,9 +231,6 @@ function start(texture) {
 
 	layout(); updateCamera();
 	hero.classList.add("has-three");
-	const tag = document.createElement("span");
-	tag.className = "bh-tag"; tag.textContent = "Three.js preview · move the mouse up and sideways";
-	hero.appendChild(tag);
 	go();
 	window.__bh3 = { renderer, bloom, uniforms };
 }

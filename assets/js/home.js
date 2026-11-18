@@ -104,12 +104,19 @@
 		vid.muted = true;
 		var vis = true;
 		var sync = function () {
-			if (reduceMotion || !vis || document.hidden) vid.pause();
+			if (reduceMotion || !vis || document.hidden || vid.preload === "none") vid.pause();
 			else { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); }
 		};
 		if ("IntersectionObserver" in window) new IntersectionObserver(function (en) { vis = en[0].isIntersecting; sync(); }).observe(vid);
 		document.addEventListener("visibilitychange", sync);
-		sync();
+		// the live Three.js black hole (blackhole3.js) normally takes over; the video only loads and
+		// plays if that has not started after a moment (no WebGL2, or the module failed)
+		var hero0 = vid.closest(".about-hero");
+		if (hero0 && hero0.classList.contains("has-three")) return;
+		var fallback = setTimeout(function () {
+			if (hero0 && hero0.classList.contains("has-three")) return;
+			vid.preload = "auto"; vid.autoplay = true; vid.load(); sync();
+		}, 2500);
 		if (reduceMotion) return;
 		// near the pointer the hole drifts slowly a little towards it (no stretching or turning, so it stays calm)
 		var hero = vid.closest(".about-hero"), BASE = -9;
