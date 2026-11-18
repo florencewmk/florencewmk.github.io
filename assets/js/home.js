@@ -569,7 +569,8 @@
 		gx += (tgx * hold - gx) * 0.05; gz += (tgz * hold - gz) * 0.05;
 		if (active) { lpx += (px - lpx) * 0.2; lpy += (py - lpy) * 0.2; }
 		else { lpx += (-9999 - lpx) * 0.02; lpy += (-9999 - lpy) * 0.02; }
-		fly += ((0.45 + 0.9 * Math.max(0, throttle - 0.6) / 0.4) * (1 - ee * 0.5) - fly) * 0.03;   // fly faster when the engine throttles up
+		if (videoEngine) { var eb = window.__engineBoost || 0; fly += ((0.5 + 2.6 * eb) - fly) * 0.04; }   // hovering the 3D engine rushes the stars past
+		else fly += ((0.45 + 0.9 * Math.max(0, throttle - 0.6) / 0.4) * (1 - ee * 0.5) - fly) * 0.03;   // fly faster when the engine throttles up
 		drawSky(dt);
 		draw();
 		if (thrustEl) thrustEl.textContent = String(Math.round(throttle * 100 * Math.max(0, 1 - ee * 1.8))).padStart(3, "0");
