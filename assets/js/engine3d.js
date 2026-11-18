@@ -27,8 +27,8 @@ function start() {
 	let renderer;
 	try {
 		renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
-	} catch (e) { return; }                                   // no WebGL: keep the video
-	if (!renderer.capabilities.isWebGL2) { renderer.dispose(); return; }
+	} catch (e) { hero.classList.add("engine-fallback"); return; }   // no WebGL: show the video
+	if (!renderer.capabilities.isWebGL2) { renderer.dispose(); hero.classList.add("engine-fallback"); return; }
 	hero.insertBefore(canvas, hero.querySelector(".hero-inner"));
 	renderer.setClearColor(0x000000, 1);
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -250,7 +250,7 @@ function start() {
 	let stopped = false;
 	function giveUp() {
 		stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0;
-		window.__engineBoost = 0; hero.classList.remove("engine-live", "engine-hover");
+		window.__engineBoost = 0; hero.classList.remove("engine-live", "engine-hover"); hero.classList.add("engine-fallback");
 		canvas.remove(); renderer.dispose();
 	}
 	function frame(now) {
@@ -281,7 +281,7 @@ function start() {
 		throatGlow.material.opacity = 0.9 + 0.1 * flick; exitGlow.material.opacity = (0.35 + 0.25 * boost) * flick;
 		bloom.strength = 0.5 + 0.25 * boost;
 		composer.render();
-		if (!shown) { shown = true; hero.classList.add("engine-live"); }
+		if (!shown) { shown = true; hero.classList.remove("engine-fallback"); hero.classList.add("engine-live"); }
 		if (!reduceMotion && visible && !document.hidden) raf = requestAnimationFrame(frame);
 	}
 	if (window.IntersectionObserver) new IntersectionObserver((en) => { visible = en[0].isIntersecting; if (visible && !raf && !reduceMotion) raf = requestAnimationFrame(frame); }).observe(hero);

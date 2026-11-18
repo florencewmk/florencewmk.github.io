@@ -622,3 +622,10 @@
 	apply();
 	if (mq && mq.addEventListener) mq.addEventListener("change", apply);
 })();
+
+/* If the 3D engine has not started after 6 s (module blocked or failed), show the rendered video instead */
+(function () {
+	var h = document.querySelector(".home .hero");
+	if (!h || !h.querySelector(".engine-video")) return;
+	setTimeout(function () { if (!h.classList.contains("engine-live")) h.classList.add("engine-fallback"); }, 6000);
+})();
