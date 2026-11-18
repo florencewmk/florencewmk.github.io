@@ -939,3 +939,39 @@ ol { list-style: none; margin: 0; padding: 0; }
 .reveal { transform: translate3d(0, 32px, 0) scale(.985); transition-duration: .75s, .75s; }
 .reveal.above { transform: translate3d(0, -32px, 0) scale(.985); }
 .reveal.in { transform: none; }
+
+/* ---------- Uniform subpages (Projects, CV, About, detail pages) ----------
+   Every subpage title starts at the same height and has the same size; breadcrumbs/labels sit in the
+   space above the title instead of pushing it down; reading text, captions and small titles share one size. */
+.page-head { position: relative; }
+.page-head h1 { margin-top: 18px; }
+.page-meta { position: absolute; left: var(--gutter); right: var(--gutter); bottom: calc(100% - 144px); display: flex; flex-direction: column; gap: 4px; }
+.page-meta p { margin: 0; }
+
+@media (min-width: 761px) {
+	.page-about .about-hero { min-height: 0; padding-top: 150px; padding-bottom: 0; align-items: start; }
+	.page-about .about-hero-inner { align-items: flex-start; }
+	.page-about .about-hero h1 { margin-top: 18px; }
+	.page-about .bh-slot { margin-top: -30px; }
+	.page .about-hero + .section { padding-top: clamp(56px, 8vw, 96px); }
+}
+.about-hero h1 { font-size: clamp(40px, 5.4vw, 68px); letter-spacing: -0.04em; line-height: 1; margin-bottom: 18px; }
+
+/* reading text */
+.page .prose, .page .row-main em, .page .grid-cards p, .page .feature-text p:not(.label),
+.page-projects .feature-text p:not(.label), .page-projects .row-main em,
+.grade-text p, .hobby p { font-size: 19.5px; line-height: 1.6; color: #f0eef7; }
+.page .row-main ul { font-size: 19px; line-height: 1.6; color: #f0eef7; }
+/* captions */
+.page .figure figcaption, .posts-note, .post figcaption { font-size: 18.5px; line-height: 1.55; color: #f0eef7; }
+/* small titles (row titles, cards, hobbies, posts) */
+.page .row-main strong, .page-projects .rows-compact .row-main strong,
+.page .grid-cards h3, .hobby h3, .posts-title { font-size: 23px; }
+@media (max-width: 760px) {
+	.page .prose, .page .row-main em, .page .grid-cards p, .page .feature-text p:not(.label),
+	.page-projects .feature-text p:not(.label), .page-projects .row-main em,
+	.grade-text p, .hobby p, .page .row-main ul { font-size: 17.5px; }
+	.page .figure figcaption, .posts-note, .post figcaption { font-size: 17px; }
+	.page .row-main strong, .page-projects .rows-compact .row-main strong,
+	.page .grid-cards h3, .hobby h3, .posts-title { font-size: 21px; }
+}
