@@ -984,3 +984,12 @@ ol { list-style: none; margin: 0; padding: 0; }
 }
 .nav li a .nav-pill { width: auto; height: auto; overflow: visible; clip-path: none; }
 .vt-arrive .home .nav, .home.vt-arrive .nav { animation: nav-breathe 5s 1.4s ease-in-out infinite; }
+
+/* About: page-wide Three.js star field behind everything (blackhole3.js); the black hole is
+   screen-blended over it, so the hero must not isolate or paint its own black */
+html.has-sky { background: #000; }
+html.has-sky body, html.has-sky main, html.has-sky .section, html.has-sky .footer { background: transparent; }
+html.has-sky .about-hero { isolation: auto; background: transparent; }
+html.has-sky .about-hero::after, html.has-sky .about-hero::before { display: none; }
+html.has-sky .about-hero .blackhole { display: none; }
+html.has-sky .bh-three { -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%); mask-image: linear-gradient(180deg, #000 70%, transparent 100%); }

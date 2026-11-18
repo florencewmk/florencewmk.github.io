@@ -31,7 +31,7 @@ function start(texture) {
 	const canvas = renderer.domElement;
 	canvas.className = "bh-three";
 	canvas.setAttribute("aria-hidden", "true");
-	canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block";
+	canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block;mix-blend-mode:screen";
 	hero.insertBefore(canvas, hero.firstChild.nextSibling);
 
 	texture.wrapS = THREE.RepeatWrapping;
@@ -145,7 +145,7 @@ function start(texture) {
 					p = np;
 					if (trans < .01) break;
 				}
-				if (escaped) col += stars(normalize(v)) * trans;
+				// the sky comes from the page-wide star field behind this canvas (screen-blended)
 				gl_FragColor = vec4(col, 1.);
 			}`,
 	});
@@ -176,6 +176,7 @@ function start(texture) {
 		uniforms.uRight.value.copy(right); uniforms.uUp.value.copy(up);
 	}
 
+	let baseX = 0, baseY = 0;
 	let W = 0, H = 0, quality = Math.min(window.devicePixelRatio || 1, 1.25);
 	function layout() {
 		const r = hero.getBoundingClientRect(), s = slot.getBoundingClientRect();
@@ -185,23 +186,29 @@ function start(texture) {
 		composer.setPixelRatio(quality);
 		composer.setSize(W, H);
 		const cx = s.left - r.left + s.width / 2, cy = s.top - r.top + s.height / 2;
+		baseX = cx; baseY = cy;
 		uniforms.uCenter.value.set(cx * quality, (H - cy) * quality);
 		// apparent disk radius about 0.62 of the slot width
 		uniforms.uScale.value = (s.width * 0.82) / (20 / DIST) * quality;
 	}
 
-	// pointer: a real change of viewpoint. Moving up looks down onto the disk (up to ~24 deg),
-	// moving sideways swings round the hole and rolls the view. Slow and smooth.
-	let rollTo = 0, roll = 0;
-	hero.addEventListener("pointermove", (e) => {
-		const r = hero.getBoundingClientRect(), s = slot.getBoundingClientRect();
-		const dx = THREE.MathUtils.clamp((e.clientX - (s.left + s.width / 2)) / (r.width * 0.5), -1, 1);
-		const dy = THREE.MathUtils.clamp((e.clientY - (s.top + s.height / 2)) / (r.height * 0.5), -1, 1);
-		incTo = BASE_INC + Math.max(0, -dy) * THREE.MathUtils.degToRad(20) - Math.max(0, dy) * THREE.MathUtils.degToRad(3);
-		azTo = dx * THREE.MathUtils.degToRad(30);
-		rollTo = -dx * THREE.MathUtils.degToRad(7);
+	// pointer, anywhere on the page and in every direction: the viewpoint changes for real
+	// (above = look down onto the disk, below = look up at it from underneath, sideways = swing
+	// round and roll), and the hole drifts a little towards the pointer. All slow and damped.
+	let rollTo = 0, roll = 0, offX = 0, offY = 0, offXTo = 0, offYTo = 0;
+	const D2R = THREE.MathUtils.degToRad;
+	window.addEventListener("pointermove", (e) => {
+		const s = slot.getBoundingClientRect();
+		const px = e.clientX - (s.left + s.width / 2), py = e.clientY - (s.top + s.height / 2);
+		const dx = THREE.MathUtils.clamp(px / (window.innerWidth * 0.5), -1, 1);
+		const dy = THREE.MathUtils.clamp(py / (window.innerHeight * 0.5), -1, 1);
+		incTo = BASE_INC - dy * D2R(dy < 0 ? 20 : 16);
+		azTo = dx * D2R(30);
+		rollTo = -dx * D2R(7);
+		const d = Math.hypot(px, py) || 1, pull = Math.min(28, d * 0.05);
+		offXTo = px / d * pull; offYTo = py / d * pull;
 	}, { passive: true });
-	hero.addEventListener("pointerleave", () => { azTo = 0; incTo = BASE_INC; rollTo = 0; });
+	document.documentElement.addEventListener("pointerleave", () => { azTo = 0; incTo = BASE_INC; rollTo = 0; offXTo = offYTo = 0; });
 
 	let visible = true, raf = 0, lastT = 0, avg = 0.016, counted = 0;
 	const maxQ = Math.min(window.devicePixelRatio || 1, 1.25);
@@ -212,6 +219,8 @@ function start(texture) {
 		const dt = Math.min(clock.getDelta(), 0.05);   // also advances clock.elapsedTime
 		if (!reduceMotion) uniforms.uTime.value += dt;
 		az += (azTo - az) * 0.03; inc += (incTo - inc) * 0.03; roll += (rollTo - roll) * 0.03;
+		offX += (offXTo - offX) * 0.03; offY += (offYTo - offY) * 0.03;
+		uniforms.uCenter.value.set((baseX + offX) * quality, (H - (baseY + offY)) * quality);
 		updateCamera();
 		composer.render();
 		// keep it smooth: average the frame time (ignoring pauses) and adjust the resolution both ways
@@ -235,9 +244,75 @@ function start(texture) {
 	window.__bh3 = { renderer, bloom, uniforms };
 }
 
+
+/* Page-wide star field, fixed behind the whole page. Points spread through a thick shell around
+   the viewer (like a planetarium), soft round sprites with size attenuation, a few warm and blue
+   tints, gentle twinkle, a very slow turn of the sky and a little parallax with the pointer. */
+function starField() {
+	const r = new THREE.WebGLRenderer({ antialias: false, alpha: false });
+	r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+	r.setClearColor(0x000000, 1);
+	const cv = r.domElement;
+	cv.className = "sky";
+	cv.setAttribute("aria-hidden", "true");
+	cv.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;display:block";
+	document.body.prepend(cv);
+	const scene = new THREE.Scene();
+	const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 400);
+	const N = 7000, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), size = new Float32Array(N), ph = new Float32Array(N);
+	const tint = [[1, 1, 1], [1, .93, .82], [.85, .9, 1], [1, .86, .7], [.92, .95, 1]];
+	for (let i = 0; i < N; i++) {
+		const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, rr = 80 + Math.random() * 120, q = Math.sqrt(1 - u * u);
+		pos.set([q * Math.cos(a) * rr, u * rr, q * Math.sin(a) * rr], i * 3);
+		const t = tint[Math.random() < .7 ? 0 : 1 + Math.floor(Math.random() * 4)];
+		const b = 0.35 + 0.65 * Math.pow(Math.random(), 3);
+		col.set([t[0] * b, t[1] * b, t[2] * b], i * 3);
+		size[i] = Math.random() < 0.012 ? 3.4 + Math.random() * 2 : 0.9 + Math.pow(Math.random(), 2.5) * 2.2;
+		ph[i] = Math.random() * 100;
+	}
+	const g = new THREE.BufferGeometry();
+	g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+	g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+	g.setAttribute("size", new THREE.BufferAttribute(size, 1));
+	g.setAttribute("phase", new THREE.BufferAttribute(ph, 1));
+	const m = new THREE.ShaderMaterial({
+		uniforms: { uTime: { value: 0 }, uPR: { value: r.getPixelRatio() }, uH: { value: 800 } },
+		transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+		vertexShader: `attribute float size; attribute float phase; attribute vec3 color; uniform float uTime, uPR, uH;
+			varying vec3 vC; varying float vA;
+			void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.); gl_Position = projectionMatrix * mv;
+				gl_PointSize = size * uPR * (120. / -mv.z) * (uH / 900.) + uPR * .6;
+				vA = .72 + .28 * sin(uTime * (.6 + fract(phase) * 1.6) + phase); vC = color; }`,
+		fragmentShader: `varying vec3 vC; varying float vA;
+			void main(){ vec2 d = gl_PointCoord - .5; float r = length(d); float a = smoothstep(.5, .0, r); a *= a;
+				gl_FragColor = vec4(vC * a * vA * 1.4, 1.); }`,
+	});
+	const pts = new THREE.Points(g, m);
+	scene.add(pts);
+	let mx = 0, my = 0, tx = 0, ty = 0;
+	window.addEventListener("pointermove", (e) => { tx = (e.clientX / window.innerWidth - .5); ty = (e.clientY / window.innerHeight - .5); }, { passive: true });
+	function size_() { const w = window.innerWidth, h = window.innerHeight; r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); m.uniforms.uH.value = h; }
+	size_(); window.addEventListener("resize", size_);
+	const clk = new THREE.Clock();
+	let raf = 0;
+	function loop() {
+		raf = 0; if (document.hidden) return;
+		const dt = Math.min(clk.getDelta(), .05);
+		if (!reduceMotion) { m.uniforms.uTime.value += dt; pts.rotation.y += dt * .004; pts.rotation.x += dt * .0012; }
+		mx += (tx - mx) * .03; my += (ty - my) * .03;
+		cam.rotation.set(-my * .06, -mx * .08, 0);
+		r.render(scene, cam);
+		if (!reduceMotion) raf = requestAnimationFrame(loop);
+	}
+	document.addEventListener("visibilitychange", () => { if (!raf) { clk.getDelta(); raf = requestAnimationFrame(loop); } });
+	raf = requestAnimationFrame(loop);
+}
+
 if (hero && slot) {
 	const probe = document.createElement("canvas");
 	if (probe.getContext("webgl2")) {
+		document.documentElement.classList.add("has-sky");
+		starField();
 		new THREE.TextureLoader().load(new URL("../../images/about/disk-texture.jpg", import.meta.url).href, start);
 	}
 }
