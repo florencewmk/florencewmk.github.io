@@ -996,3 +996,7 @@ html.has-sky .about-hero .blackhole { display: none; }
 /* About performance: no frosted-glass blur over the animated sky (it re-blurs every frame);
    a darker solid tint keeps the toolbar readable instead */
 html.has-sky .glass, html.has-sky .nav { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background-color: rgba(14, 12, 24, .88); }
+
+/* No white flash between pages: the page transition layer and the root are always black */
+html { background: #000; }
+::view-transition { background: #000; }
