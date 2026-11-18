@@ -213,7 +213,7 @@ function start() {
 	function layout() {
 		const r = hero.getBoundingClientRect(), s = slot.getBoundingClientRect();
 		W = Math.max(1, r.width); H = Math.max(1, r.height); mobile = W < 760;
-		dpr = 1;                                                 // keep the 3D layer at standard resolution: smooth on every machine
+		dpr = mobile ? 0.6 : 0.7;                                // draw the 3D layer at reduced resolution (the soft plume hides it): about half the pixels to shade
 		renderer.setPixelRatio(dpr); renderer.setSize(W, H, false); composer.setPixelRatio(dpr); composer.setSize(W, H);
 		camera.aspect = W / H; camera.updateProjectionMatrix();
 		pxPerUnit = H / (2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
@@ -247,15 +247,25 @@ function start() {
 	let time = 0, raf = 0, visible = true, shown = false, slow = 0;
 	const baseQ = rig.quaternion.clone(), wob = new THREE.Quaternion(), e3 = new THREE.Euler();
 	let lastFrame = 0, slowFrames = 0;
+	let stopped = false;
+	function giveUp() {
+		stopped = true; if (raf) cancelAnimationFrame(raf); raf = 0;
+		window.__engineBoost = 0; hero.classList.remove("engine-live", "engine-hover");
+		canvas.remove(); renderer.dispose();
+	}
 	function frame(now) {
 		raf = 0;
-		if (now && now - lastFrame < 21) { raf = requestAnimationFrame(frame); return; }   // cap at about 45 fps
-		if (lastFrame && now - lastFrame > 40) slowFrames++; else slowFrames = Math.max(0, slowFrames - 0.5);
+		if (stopped) return;
+		if (now && now - lastFrame < 14) { raf = requestAnimationFrame(frame); return; }   // cap at 60 fps (even pacing on 60 Hz and 120 Hz screens)
+		const gap = now - lastFrame;
+		if (lastFrame && gap > 30 && gap < 400) slowFrames++; else slowFrames = Math.max(0, slowFrames - 0.5);   // gaps over 400 ms are a hidden tab, not slowness
 		lastFrame = now || performance.now();
 		if (slowFrames > 20) {                                          // struggling: drop quality a step
 			slowFrames = 0;
 			const u0 = plumeMat.uniforms.uSteps;
-			if (u0.value > 16) u0.value -= 6; else if (bloom.enabled) bloom.enabled = false;
+			if (u0.value > 16) u0.value -= 6;
+			else if (bloom.enabled) bloom.enabled = false;
+			else { giveUp(); return; }                                       // still too slow: fall back to the rendered video
 		}
 		const dt = Math.min(0.05, clock.getDelta());
 		time += dt;
