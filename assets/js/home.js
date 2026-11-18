@@ -65,10 +65,7 @@
 			links.forEach(function (a) { a.classList.remove("spring"); });
 			if (e.persisted) store.set(String(here));
 		});
-		/* arriving through the glide: skip the title's own entrance so the page is simply there */
-		window.addEventListener("pagereveal", function (e) {
-			if (e.viewTransition) document.documentElement.classList.add("vt-arrive");
-		});
+		/* arriving through the glide skips the title's own entrance: a one-line script in each page's <head> */
 
 		/* start loading a page as soon as the pointer rests on (or a finger touches) its link */
 		var warmed = {};
