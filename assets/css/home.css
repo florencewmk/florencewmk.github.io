@@ -898,3 +898,16 @@ ol { list-style: none; margin: 0; padding: 0; }
 @media (max-width: 860px) { .home-contact .contact-side { grid-template-columns: 1fr; } }
 /* the exhaust plume fades out at the bottom of the hero instead of ending in a hard line above "Get in touch" */
 .home .engine3d { -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); }
+
+/* Homepage: shorter first screen so "Get in touch" is already in view without scrolling */
+.home .hero { min-height: max(470px, calc(100svh - 290px)); padding-top: 104px; padding-bottom: 24px; }
+@media (min-width: 760px) {
+	/* the engine slot no longer sets the hero height: it matches the text block and the video is centred in it */
+	.home .engine-slot { position: relative; height: 340px; }
+	.home .engine-video { position: absolute; top: 50%; left: 50%; margin: 0; transform: translate(-50%, -50%); }
+}
+.home-contact { padding-top: 8px; }
+/* engine drawn level with the text block (engine3d.js places it from this slot's position) */
+@media (min-width: 760px) { .home .engine-slot { top: calc(23px + 13.9svh); } }
+/* contact cards are on the first screen now: always shown (the scroll fade-in started them hidden near the bottom edge) */
+.home-contact .reveal { opacity: 1 !important; transform: none !important; }
