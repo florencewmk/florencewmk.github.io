@@ -822,7 +822,7 @@ ol { list-style: none; margin: 0; padding: 0; }
 @media (max-width: 760px) { .bh-video { width: 190%; } }
 
 /* Homepage: Blender-rendered rocket engine (turntable video on black; screen blend lets the stars show through) */
-.engine-video { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; mix-blend-mode: screen; pointer-events: none; }
+.engine-video { display: block; width: 100%; height: auto; aspect-ratio: 3 / 5; mix-blend-mode: screen; pointer-events: none; }
 .home .hero .engine, .home .hero .flame { display: none; }
 @media (min-width: 760px) {
 	.home .hero-inner { grid-template-columns: minmax(0, 520px) clamp(300px, 27vw, 470px); column-gap: clamp(20px, 3vw, 70px); }
