@@ -914,3 +914,19 @@ ol { list-style: none; margin: 0; padding: 0; }
 /* contact cards: always shown (the scroll fade-in could leave them hidden near the bottom edge) */
 .home-contact .reveal { opacity: 1 !important; transform: none !important; }
 @media (max-width: 760px) { .home .hero::before { background-size: 100% 100svh; background-repeat: no-repeat; } }  /* phone: text shade only on the first screen, stars stay bright behind "Get in touch" */
+
+/* nav: the lit pill is one element that slides between links (see home.js, section 4) */
+.nav ul { position: relative; }
+.nav li { position: relative; z-index: 1; }
+.nav-pill {
+	position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 0; opacity: 0; pointer-events: none;
+	border-radius: 999px; border: 1px solid rgba(214, 200, 255, .5);
+	background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 60%), rgba(var(--glass-purple), .32);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 0 26px -6px rgba(var(--glass-purple), 1);
+	transition: transform .42s cubic-bezier(.45, 1.3, .5, 1), width .42s cubic-bezier(.45, 1.3, .5, 1), height .42s ease, opacity .2s;
+	will-change: transform, width;
+}
+.nav-pill.no-anim { transition: none; }
+.nav.has-pill li a.is-active { background: transparent; border-color: transparent; box-shadow: none; }
+.nav.has-pill li a.is-active:hover { background-color: rgba(var(--glass-purple), .12); }
+@media (prefers-reduced-motion: reduce) { .nav-pill { transition: none; } }

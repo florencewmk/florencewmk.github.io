@@ -4,7 +4,7 @@
       It rests as an exploded drawing (no labels); hovering the engine (tapping on touch
       screens) assembles it and fires it. The flame throttles up while the cursor moves.
    3. Scroll reveal
-   4. Nav: a short spring when a link is pressed
+   4. Nav: one lit pill that slides to the page you pick
    5. About page: star field and the black-hole video, which follows the pointer
    No dependencies. */
 (function () {
@@ -27,20 +27,73 @@
 		if (shineTarget && !shinePending) { shinePending = true; requestAnimationFrame(applyShine); }
 	}, { passive: true });
 
-	/* ---------- 4. Nav: links spring back when pressed ----------
-	   The press itself is CSS (:active). On a plain click the link plays the spring first and
-	   the page changes a moment later, so the reaction is visible. */
-	Array.prototype.forEach.call(document.querySelectorAll(".nav li a"), function (a) {
-		a.addEventListener("click", function (e) {
-			if (reduceMotion || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === "_blank") return;
-			e.preventDefault();
-			a.classList.remove("spring"); void a.offsetWidth; a.classList.add("spring");
-			setTimeout(function () { window.location.href = a.href; }, 230);
+	/* ---------- 4. Nav: one lit pill that slides to the page you pick ----------
+	   The pill is a single element behind the links. On a click it glides (with a slight
+	   stretch) to the clicked link, then the page changes. Arriving with Back/Forward, it
+	   glides over from the page you came from. */
+	(function () {
+		var ul = document.querySelector(".nav ul");
+		if (!ul) return;
+		var links = Array.prototype.slice.call(ul.querySelectorAll("li a"));
+		var nav = ul.closest(".nav");
+		var pill = document.createElement("span");
+		pill.className = "nav-pill"; pill.setAttribute("aria-hidden", "true");
+		ul.insertBefore(pill, ul.firstChild);
+		var KEY = "navPillFrom", CLICK = "navPillClick";
+		function activeIndex() { for (var i = 0; i < links.length; i++) if (links[i].classList.contains("is-active")) return i; return -1; }
+		var home = activeIndex();
+		function place(i, animate) {
+			var a = links[i];
+			if (!a) { pill.style.opacity = "0"; return; }
+			if (!animate) pill.classList.add("no-anim");
+			pill.style.opacity = "1";
+			pill.style.width = a.offsetWidth + "px";
+			pill.style.height = a.offsetHeight + "px";
+			var li = a.parentNode;
+			pill.style.transform = "translate3d(" + (li.offsetLeft + a.offsetLeft) + "px," + (li.offsetTop + a.offsetTop) + "px,0)";
+			if (!animate) { void pill.offsetWidth; pill.classList.remove("no-anim"); }
+		}
+		function setActive(i) {
+			links.forEach(function (a, j) { a.classList.toggle("is-active", j === i); });
+		}
+		var store = {
+			get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+			set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
+			del: function (k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+		};
+		function arrive() {
+			setActive(home);
+			var from = parseInt(store.get(KEY), 10), clicked = store.get(CLICK) === "1";
+			store.del(CLICK);
+			if (!reduceMotion && !clicked && !isNaN(from) && from !== home && links[from]) {
+				place(from, false);
+				requestAnimationFrame(function () { requestAnimationFrame(function () { place(home, true); }); });
+			} else place(home, false);
+			store.set(KEY, String(home));
+		}
+		nav.classList.add("has-pill");
+		arrive();
+		if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { place(activeIndex(), false); });
+		if ("ResizeObserver" in window) new ResizeObserver(function () { place(activeIndex(), false); }).observe(ul);
+		else window.addEventListener("resize", function () { place(activeIndex(), false); });
+
+		links.forEach(function (a, i) {
+			a.addEventListener("click", function (e) {
+				if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === "_blank") return;
+				store.set(KEY, String(i)); store.set(CLICK, "1");
+				if (reduceMotion) return;
+				e.preventDefault();
+				if (i === activeIndex()) { a.classList.remove("spring"); void a.offsetWidth; a.classList.add("spring"); }
+				setActive(i); place(i, true);
+				setTimeout(function () { window.location.href = a.href; }, 420);
+			});
 		});
-	});
-	window.addEventListener("pageshow", function () {
-		Array.prototype.forEach.call(document.querySelectorAll(".nav li a.spring"), function (a) { a.classList.remove("spring"); });
-	});
+		/* coming back from the browser cache: put the pill back on this page's link */
+		window.addEventListener("pageshow", function (e) {
+			links.forEach(function (a) { a.classList.remove("spring"); });
+			if (e.persisted) { store.del(CLICK); arrive(); }
+		});
+	})();
 
 	/* ---------- 3. Scroll reveal ----------
 	   Items fade and rise in when they come into view (from below when scrolling down, from
